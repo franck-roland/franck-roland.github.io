@@ -465,7 +465,6 @@
  *  2) Ton app doit être servie via http(s) (pas file://) pour OAuth fiable.
  */
 const GOOGLE_CLIENT_ID = "821218495866-vsgjjicpsbovaaqsacrep32pgrldg8se.apps.googleusercontent.com";
-const GOOGLE_API_KEY   = "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";
 
 /**
  * Scope minimal : accès au dossier caché AppData.
@@ -560,7 +559,7 @@ function setDriveUI(status, kind="wait"){
 }
 
 function canDrive(){
-  return GOOGLE_CLIENT_ID && GOOGLE_API_KEY && !GOOGLE_CLIENT_ID.includes("REPLACE_ME") && !GOOGLE_API_KEY.includes("REPLACE_ME");
+  return GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.includes("REPLACE_ME");
 }
 
 async function driveFetch(url, opts={}){
@@ -568,7 +567,7 @@ async function driveFetch(url, opts={}){
   const headers = new Headers(opts.headers || {});
   headers.set("Authorization", "Bearer " + driveAccessToken);
   // For some endpoints, API key isn't needed when bearer is present, but harmless for list/search.
-  const finalUrl = url.includes("?") ? `${url}&key=${encodeURIComponent(GOOGLE_API_KEY)}` : `${url}?key=${encodeURIComponent(GOOGLE_API_KEY)}`;
+  const finalUrl = url;
   const res = await fetch(finalUrl, { ...opts, headers });
   if(!res.ok){
     const text = await res.text().catch(()=> "");
@@ -672,7 +671,7 @@ function scheduleAutoSync(){
 
 async function connectGoogle(){
   if(!canDrive()){
-    alert("Ajoute GOOGLE_CLIENT_ID et GOOGLE_API_KEY dans le fichier.");
+    alert("Ajoute GOOGLE_CLIENT_ID dans le fichier.");
     return;
   }
   setDriveUI("Drive: connexion…", "wait");
