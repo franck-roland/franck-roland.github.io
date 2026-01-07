@@ -3,20 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dashboard Structure TDA</title>
+  <title>Dashboard Structure TDA (Drive Sync)</title>
   <style>
     :root{
-      --bg:#0b0c10;
-      --card:#111319;
-      --muted:#9aa3b2;
-      --text:#eef1f7;
-      --border:rgba(255,255,255,.10);
-      --accent:#7dd3fc;
-      --ok:#86efac;
-      --warn:#fca5a5;
-      --chip:#1b1f2a;
-      --shadow: 0 10px 28px rgba(0,0,0,.35);
-      --radius:18px;
+      --bg:#0b0c10; --card:#111319; --muted:#9aa3b2; --text:#eef1f7;
+      --border:rgba(255,255,255,.10); --accent:#7dd3fc; --ok:#86efac; --warn:#fca5a5;
+      --chip:#1b1f2a; --shadow: 0 10px 28px rgba(0,0,0,.35); --radius:18px;
     }
     *{ box-sizing:border-box; }
     body{
@@ -28,55 +20,39 @@
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
       line-height:1.3;
     }
-    a{ color: inherit; }
     .wrap{ max-width:1100px; margin:0 auto; padding:16px; padding-bottom:48px; }
-    .header{
-      display:flex; gap:12px; align-items:flex-end; justify-content:space-between; flex-wrap:wrap;
-      margin: 10px 0 16px;
-    }
-    .title{
-      display:flex; gap:12px; align-items:center; min-width:260px;
-    }
-    .logo{
-      width:42px; height:42px; border-radius:16px;
-      border:1px solid var(--border);
-      display:grid; place-items:center;
-      background: rgba(255,255,255,.03);
-    }
+    .header{ display:flex; gap:12px; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; margin: 10px 0 16px; }
+    .title{ display:flex; gap:12px; align-items:center; min-width:260px; }
+    .logo{ width:42px; height:42px; border-radius:16px; border:1px solid var(--border); display:grid; place-items:center; background: rgba(255,255,255,.03); }
     h1{ margin:0; font-size:20px; font-weight:700; }
     .sub{ margin-top:4px; color:var(--muted); font-size:13px; display:flex; gap:10px; flex-wrap:wrap; }
-    .actions{ display:flex; gap:8px; flex-wrap:wrap; }
+    .actions{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
     .btn{
-      border:1px solid var(--border);
-      background: rgba(255,255,255,.04);
-      color:var(--text);
-      padding:10px 12px;
-      border-radius:14px;
-      font-weight:600;
-      font-size:13px;
-      cursor:pointer;
-      box-shadow:none;
-      transition:.15s transform ease, .15s background ease;
-      user-select:none;
+      border:1px solid var(--border); background: rgba(255,255,255,.04); color:var(--text);
+      padding:10px 12px; border-radius:14px; font-weight:600; font-size:13px; cursor:pointer;
+      transition:.15s transform ease, .15s background ease; user-select:none;
     }
     .btn:active{ transform: scale(.98); }
     .btn.primary{ background: rgba(125,211,252,.14); border-color: rgba(125,211,252,.35); }
     .btn.danger{ background: rgba(252,165,165,.12); border-color: rgba(252,165,165,.35); }
-    .btn.ghost{ background: transparent; }
     .btn:disabled{ opacity:.45; cursor:not-allowed; }
+
+    .pill{
+      display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px;
+      border:1px solid var(--border); background: rgba(255,255,255,.03); font-size:12px; color: var(--muted);
+    }
+    .pill strong{ color: var(--text); font-weight:700; }
+    .status-dot{ width:8px; height:8px; border-radius:999px; background: rgba(255,255,255,.25); display:inline-block; }
+    .status-dot.ok{ background: rgba(134,239,172,.75); }
+    .status-dot.warn{ background: rgba(252,165,165,.75); }
+    .status-dot.wait{ background: rgba(125,211,252,.75); }
 
     .card{
       background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
-      border:1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow:hidden;
+      border:1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow:hidden;
     }
     .card + .card{ margin-top:12px; }
-    .card-h{
-      padding:14px 14px 10px;
-      display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap;
-    }
+    .card-h{ padding:14px 14px 10px; display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap; }
     .card-h h2{ margin:0; font-size:15px; }
     .card-h .muted{ color:var(--muted); font-size:13px; margin-top:6px; }
     .card-b{ padding: 0 14px 14px; }
@@ -86,40 +62,16 @@
       .grid.cols3{ grid-template-columns: 1fr 1fr 1fr; }
       .grid.cols2{ grid-template-columns: 1fr 1fr; }
     }
-
     .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .field{
-      width:100%;
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-    }
+    .field{ width:100%; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
     .input, .select, .textarea{
-      width:100%;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.25);
-      color:var(--text);
-      border-radius:14px;
-      padding:12px 12px;
-      font-size:14px;
-      outline:none;
+      width:100%; border:1px solid var(--border); background: rgba(0,0,0,.25); color:var(--text);
+      border-radius:14px; padding:12px 12px; font-size:14px; outline:none;
     }
     .textarea{ min-height:120px; resize:vertical; }
     .inline{ width:auto; }
     .w-140{ width:140px; }
     .w-120{ width:120px; }
-    .w-100{ width:100px; }
-
-    .pill{
-      display:inline-flex; align-items:center; gap:8px;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      background: rgba(255,255,255,.03);
-      font-size:12px; color: var(--muted);
-    }
-    .pill strong{ color: var(--text); font-weight:700; }
 
     .tabs{
       display:flex; gap:6px; flex-wrap:wrap;
@@ -130,139 +82,53 @@
       margin: 12px 0;
     }
     .tab{
-      flex:1;
-      min-width:120px;
-      text-align:center;
-      padding:10px 10px;
-      border-radius: 14px;
-      cursor:pointer;
-      border:1px solid transparent;
-      color: var(--muted);
-      font-weight:700;
-      font-size:13px;
-      user-select:none;
+      flex:1; min-width:120px; text-align:center; padding:10px 10px; border-radius: 14px;
+      cursor:pointer; border:1px solid transparent; color: var(--muted);
+      font-weight:700; font-size:13px; user-select:none;
     }
-    .tab.active{
-      background: rgba(255,255,255,.06);
-      border-color: var(--border);
-      color: var(--text);
-    }
+    .tab.active{ background: rgba(255,255,255,.06); border-color: var(--border); color: var(--text); }
 
-    .list{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-    }
-    .item{
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.20);
-      border-radius: 16px;
-      padding:12px;
-    }
-    .item-top{
-      display:flex; justify-content:space-between; gap:10px; align-items:flex-start;
-    }
-    .item-left{
-      display:flex; gap:10px; align-items:flex-start; min-width:0; flex:1;
-    }
+    .list{ display:flex; flex-direction:column; gap:10px; }
+    .item{ border:1px solid var(--border); background: rgba(0,0,0,.20); border-radius: 16px; padding:12px; }
+    .item-top{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+    .item-left{ display:flex; gap:10px; align-items:flex-start; min-width:0; flex:1; }
     .chk{
-      width:20px; height:20px; border-radius:999px;
-      border:1px solid var(--border);
-      display:grid; place-items:center;
-      margin-top:1px;
-      cursor:pointer;
-      user-select:none;
+      width:20px; height:20px; border-radius:999px; border:1px solid var(--border);
+      display:grid; place-items:center; margin-top:1px; cursor:pointer; user-select:none;
     }
-    .chk.done{
-      border-color: rgba(134,239,172,.55);
-      background: rgba(134,239,172,.10);
-      color: var(--ok);
-    }
-    .item-text{
-      min-width:0;
-    }
-    .item-text .t{
-      font-size:14px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-    .item-text .t.done{
-      text-decoration: line-through;
-      color: var(--muted);
-    }
+    .chk.done{ border-color: rgba(134,239,172,.55); background: rgba(134,239,172,.10); color: var(--ok); }
+    .item-text{ min-width:0; }
+    .item-text .t{ font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .item-text .t.done{ text-decoration: line-through; color: var(--muted); }
     .meta{ margin-top:6px; display:flex; gap:8px; flex-wrap:wrap; }
     .chip{
       display:inline-flex; align-items:center; gap:6px;
-      padding:5px 8px;
-      border-radius:999px;
-      background: var(--chip);
-      border: 1px solid var(--border);
+      padding:5px 8px; border-radius:999px;
+      background: var(--chip); border: 1px solid var(--border);
       font-size:12px; color: var(--muted);
     }
     .chip.badge{ color: var(--text); border-color: rgba(125,211,252,.35); background: rgba(125,211,252,.10); }
-    .chip.warn{ border-color: rgba(252,165,165,.35); background: rgba(252,165,165,.10); }
 
     .item-actions{ display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
-    .mini{
-      padding:8px 10px;
-      border-radius: 12px;
-      font-size:12px;
-    }
-
+    .mini{ padding:8px 10px; border-radius: 12px; font-size:12px; }
     .notes{
-      margin-top:10px;
-      padding:10px;
-      border-radius: 14px;
-      background: rgba(255,255,255,.03);
-      border:1px solid var(--border);
-      color: var(--text);
-      font-size:13px;
-      white-space: pre-wrap;
+      margin-top:10px; padding:10px; border-radius: 14px; background: rgba(255,255,255,.03);
+      border:1px solid var(--border); color: var(--text); font-size:13px; white-space: pre-wrap;
     }
-
     .hint{
-      border:1px dashed var(--border);
-      border-radius: 16px;
-      padding:12px;
-      color: var(--muted);
-      font-size:13px;
-      background: rgba(255,255,255,.02);
+      border:1px dashed var(--border); border-radius: 16px; padding:12px; color: var(--muted);
+      font-size:13px; background: rgba(255,255,255,.02);
     }
-    .split{
-      height:1px;
-      background: var(--border);
-      margin: 12px 0;
-    }
-
-    .timer{
-      display:flex;
-      gap:16px;
-      flex-wrap:wrap;
-      align-items:center;
-      justify-content:space-between;
-    }
-    .bigtime{
-      font-size:54px;
-      font-weight:800;
-      letter-spacing:-1px;
-      line-height:1;
-      margin-top:6px;
-    }
-    .small{
-      font-size:13px; color: var(--muted);
-    }
-    .two{
-      display:grid; gap:10px;
-    }
-    .footer{
-      text-align:center;
-      color: var(--muted);
-      font-size:12px;
-      margin-top:18px;
-    }
+    .split{ height:1px; background: var(--border); margin: 12px 0; }
+    .timer{ display:flex; gap:16px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+    .bigtime{ font-size:54px; font-weight:800; letter-spacing:-1px; line-height:1; margin-top:6px; }
+    .small{ font-size:13px; color: var(--muted); }
+    .footer{ text-align:center; color: var(--muted); font-size:12px; margin-top:18px; }
     .hidden{ display:none !important; }
   </style>
+
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
   <div class="wrap">
@@ -270,7 +136,7 @@
       <div class="title">
         <div class="logo">🧠</div>
         <div>
-          <h1>Dashboard Structure</h1>
+          <h1>Dashboard Structure TDA</h1>
           <div class="sub">
             <span id="today"></span>
             <span>•</span>
@@ -279,16 +145,25 @@
         </div>
       </div>
       <div class="actions">
+        <span class="pill" title="État du sync Drive">
+          <span id="driveDot" class="status-dot"></span>
+          <span id="driveStatus">Drive: non connecté</span>
+        </span>
+
         <button class="btn" id="exportBtn">Export JSON</button>
         <label class="btn" style="display:inline-flex; gap:8px; align-items:center;">
           Import
           <input id="importInput" type="file" accept="application/json" style="display:none;">
         </label>
+
+        <button class="btn primary" id="driveSignInBtn">Connexion Google</button>
+        <button class="btn" id="driveSyncNowBtn" disabled>Sync maintenant</button>
+        <button class="btn" id="driveSignOutBtn" disabled>Déconnexion</button>
+
         <button class="btn danger" id="resetBtn">Réinitialiser</button>
       </div>
     </div>
 
-    <!-- Quick capture -->
     <div class="card">
       <div class="card-h">
         <div>
@@ -310,7 +185,6 @@
       </div>
     </div>
 
-    <!-- Tabs -->
     <div class="tabs" role="tablist">
       <div class="tab active" data-tab="lists">Listes</div>
       <div class="tab" data-tab="focus">Focus</div>
@@ -318,7 +192,6 @@
       <div class="tab" data-tab="plan">Plan 7j</div>
     </div>
 
-    <!-- LISTS -->
     <section id="tab-lists">
       <div id="activeFullBanner" class="hint hidden" style="margin-bottom:12px;">
         <strong style="color:var(--text);">Active est pleine.</strong>
@@ -326,7 +199,6 @@
       </div>
 
       <div class="grid cols3">
-        <!-- Inbox -->
         <div class="card">
           <div class="card-h">
             <div>
@@ -349,7 +221,6 @@
           </div>
         </div>
 
-        <!-- Active -->
         <div class="card">
           <div class="card-h">
             <div>
@@ -373,7 +244,6 @@
           </div>
         </div>
 
-        <!-- Parking -->
         <div class="card">
           <div class="card-h">
             <div>
@@ -400,7 +270,7 @@
       <div class="card" style="margin-top:12px;">
         <div class="card-h">
           <div>
-            <h2>Rappels</h2>
+            <h2>Rappels TDA</h2>
             <div class="muted">Priorise par “ça libère ? ça débloque ? plus petit pas ?”</div>
           </div>
           <span class="pill"><strong>Règle</strong> 60% fait &gt; 100% jamais fini</span>
@@ -415,7 +285,6 @@
       </div>
     </section>
 
-    <!-- FOCUS -->
     <section id="tab-focus" class="hidden">
       <div class="card">
         <div class="card-h">
@@ -447,51 +316,23 @@
 
           <div class="grid cols2">
             <div class="card" style="background:rgba(0,0,0,.12); box-shadow:none;">
-              <div class="card-h">
-                <div><h2 style="font-size:14px;">Réglages Timer</h2></div>
-              </div>
+              <div class="card-h"><div><h2 style="font-size:14px;">Réglages Timer</h2></div></div>
               <div class="card-b">
                 <div class="grid" style="grid-template-columns:1fr 1fr; gap:10px;">
-                  <div>
-                    <div class="small">Focus (min)</div>
-                    <input class="input" id="focusMin" type="number" min="5" max="90" />
-                  </div>
-                  <div>
-                    <div class="small">Pause (min)</div>
-                    <input class="input" id="breakMin" type="number" min="1" max="30" />
-                  </div>
-                  <div>
-                    <div class="small">Pause longue (min)</div>
-                    <input class="input" id="longBreakMin" type="number" min="5" max="60" />
-                  </div>
-                  <div>
-                    <div class="small">Blocs avant pause longue</div>
-                    <input class="input" id="blocksBeforeLong" type="number" min="2" max="8" />
-                  </div>
+                  <div><div class="small">Focus (min)</div><input class="input" id="focusMin" type="number" min="5" max="90" /></div>
+                  <div><div class="small">Pause (min)</div><input class="input" id="breakMin" type="number" min="1" max="30" /></div>
+                  <div><div class="small">Pause longue (min)</div><input class="input" id="longBreakMin" type="number" min="5" max="60" /></div>
+                  <div><div class="small">Blocs avant pause longue</div><input class="input" id="blocksBeforeLong" type="number" min="2" max="8" /></div>
                 </div>
 
                 <div class="split"></div>
 
-                <div class="row" style="justify-content:space-between;">
-                  <span class="small">Son (bip)</span>
-                  <input id="soundOn" type="checkbox" />
-                </div>
-                <div class="row" style="justify-content:space-between; margin-top:8px;">
-                  <span class="small">Vibration</span>
-                  <input id="vibrateOn" type="checkbox" />
-                </div>
-                <div class="row" style="justify-content:space-between; margin-top:8px;">
-                  <span class="small">Auto-start pause</span>
-                  <input id="autoStartBreak" type="checkbox" />
-                </div>
-                <div class="row" style="justify-content:space-between; margin-top:8px;">
-                  <span class="small">Auto-start focus</span>
-                  <input id="autoStartFocus" type="checkbox" />
-                </div>
+                <div class="row" style="justify-content:space-between;"><span class="small">Son (bip)</span><input id="soundOn" type="checkbox" /></div>
+                <div class="row" style="justify-content:space-between; margin-top:8px;"><span class="small">Vibration</span><input id="vibrateOn" type="checkbox" /></div>
+                <div class="row" style="justify-content:space-between; margin-top:8px;"><span class="small">Auto-start pause</span><input id="autoStartBreak" type="checkbox" /></div>
+                <div class="row" style="justify-content:space-between; margin-top:8px;"><span class="small">Auto-start focus</span><input id="autoStartFocus" type="checkbox" /></div>
 
-                <div class="row" style="margin-top:10px;">
-                  <button class="btn mini" id="saveTimerSettings">Enregistrer</button>
-                </div>
+                <div class="row" style="margin-top:10px;"><button class="btn mini" id="saveTimerSettings">Enregistrer</button></div>
               </div>
             </div>
 
@@ -513,7 +354,6 @@
       </div>
     </section>
 
-    <!-- RITUALS -->
     <section id="tab-rituals" class="hidden">
       <div class="grid cols2">
         <div class="card">
@@ -534,10 +374,7 @@
             </div>
             <div class="split"></div>
             <div class="row" style="justify-content:space-between;">
-              <div>
-                <div style="font-weight:700;">Fait</div>
-                <div class="small">Marque-le pour fermer la boucle</div>
-              </div>
+              <div><div style="font-weight:700;">Fait</div><div class="small">Marque-le pour fermer la boucle</div></div>
               <input type="checkbox" id="ritualStartDone" />
             </div>
           </div>
@@ -561,10 +398,7 @@
             </div>
             <div class="split"></div>
             <div class="row" style="justify-content:space-between;">
-              <div>
-                <div style="font-weight:700;">Fait</div>
-                <div class="small">Ça aide le démarrage demain</div>
-              </div>
+              <div><div style="font-weight:700;">Fait</div><div class="small">Ça aide le démarrage demain</div></div>
               <input type="checkbox" id="ritualEndDone" />
             </div>
           </div>
@@ -580,20 +414,14 @@
         </div>
         <div class="card-b">
           <div class="row" style="justify-content:space-between;">
-            <div>
-              <div style="font-weight:700;">Limite Active</div>
-              <div class="small">Entre 3 et 7</div>
-            </div>
+            <div><div style="font-weight:700;">Limite Active</div><div class="small">Entre 3 et 7</div></div>
             <input class="input inline w-120" id="activeLimitInput" type="number" min="3" max="7"/>
           </div>
-          <div class="row" style="margin-top:10px;">
-            <button class="btn mini" id="saveStructure">Enregistrer</button>
-          </div>
+          <div class="row" style="margin-top:10px;"><button class="btn mini" id="saveStructure">Enregistrer</button></div>
         </div>
       </div>
     </section>
 
-    <!-- PLAN -->
     <section id="tab-plan" class="hidden">
       <div class="card">
         <div class="card-h">
@@ -613,10 +441,7 @@
 
       <div class="card">
         <div class="card-h">
-          <div>
-            <h2>Mini guide d’usage</h2>
-            <div class="muted">Le flux compte plus que l’outil.</div>
-          </div>
+          <div><h2>Mini guide d’usage</h2><div class="muted">Le flux compte plus que l’outil.</div></div>
         </div>
         <div class="card-b">
           <ol style="margin:0; padding-left:18px; color:var(--muted); font-size:13px;">
@@ -629,601 +454,731 @@
       </div>
     </section>
 
-    <div class="footer">Données stockées localement (localStorage). Export/Import disponible.</div>
+    <div class="footer">Données stockées localement (localStorage) + Sync Google Drive (appDataFolder).</div>
   </div>
 
 <script>
-  // ====== STATE ======
-  const LS_KEY = "tda_structured_work_simple_v1";
+/** ===========================
+ *  CONFIG GOOGLE DRIVE SYNC
+ *  ===========================
+ *  1) Remplace ces 2 valeurs.
+ *  2) Ton app doit être servie via http(s) (pas file://) pour OAuth fiable.
+ */
+const GOOGLE_CLIENT_ID = "821218495866-vsgjjicpsbovaaqsacrep32pgrldg8se.apps.googleusercontent.com";
+const GOOGLE_API_KEY   = "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";
 
-  const DEFAULT_STATE = {
-    inbox: [],
-    active: [],
-    parking: [],
-    ritualByDay: {},
-    settings: {
-      activeLimit: 5,
-      sound: true,
-      vibrate: true,
-      autoStartBreak: false,
-      autoStartFocus: false
+/**
+ * Scope minimal : accès au dossier caché AppData.
+ * Les données sont stockées dans un fichier: tda-structure.json
+ */
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.appdata";
+const DRIVE_FILENAME = "tda-structure.json";
+
+/** ===========================
+ *  STATE (APP)
+ *  =========================== */
+const LS_KEY = "tda_structured_work_simple_v1_drive";
+
+const DEFAULT_STATE = {
+  inbox: [],
+  active: [],
+  parking: [],
+  ritualByDay: {},
+  settings: {
+    activeLimit: 5,
+    sound: true,
+    vibrate: true,
+    autoStartBreak: false,
+    autoStartFocus: false
+  },
+  timerPreset: {
+    focusMin: 25,
+    breakMin: 5,
+    longBreakMin: 15,
+    blocksBeforeLongBreak: 4
+  }
+};
+
+function uid(){
+  return Math.random().toString(16).slice(2) + Date.now().toString(16);
+}
+function todayKey(){
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+function deepMergeDefault(parsed){
+  return {
+    ...structuredClone(DEFAULT_STATE),
+    ...parsed,
+    settings: { ...DEFAULT_STATE.settings, ...(parsed.settings||{}) },
+    timerPreset: { ...DEFAULT_STATE.timerPreset, ...(parsed.timerPreset||{}) },
+    ritualByDay: parsed.ritualByDay || {},
+    inbox: Array.isArray(parsed.inbox)? parsed.inbox : [],
+    active: Array.isArray(parsed.active)? parsed.active : [],
+    parking: Array.isArray(parsed.parking)? parsed.parking : []
+  };
+}
+function loadState(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw) return structuredClone(DEFAULT_STATE);
+    const parsed = JSON.parse(raw);
+    return deepMergeDefault(parsed);
+  }catch(e){
+    return structuredClone(DEFAULT_STATE);
+  }
+}
+let state = loadState();
+
+function saveStateLocal(){
+  localStorage.setItem(LS_KEY, JSON.stringify(state));
+}
+
+/** ===========================
+ *  GOOGLE DRIVE SYNC LAYER
+ *  =========================== */
+let gTokenClient = null;
+let driveAccessToken = null;
+let driveFileId = null;
+
+let syncThrottleTimer = null;
+let syncDirty = false;
+let lastDriveEtag = null;
+
+const driveDot = document.getElementById("driveDot");
+const driveStatus = document.getElementById("driveStatus");
+const btnSignIn = document.getElementById("driveSignInBtn");
+const btnSignOut = document.getElementById("driveSignOutBtn");
+const btnSyncNow = document.getElementById("driveSyncNowBtn");
+
+function setDriveUI(status, kind="wait"){
+  driveDot.className = "status-dot " + (kind==="ok"?"ok":kind==="warn"?"warn":"wait");
+  driveStatus.textContent = status;
+}
+
+function canDrive(){
+  return GOOGLE_CLIENT_ID && GOOGLE_API_KEY && !GOOGLE_CLIENT_ID.includes("REPLACE_ME") && !GOOGLE_API_KEY.includes("REPLACE_ME");
+}
+
+async function driveFetch(url, opts={}){
+  if(!driveAccessToken) throw new Error("No access token");
+  const headers = new Headers(opts.headers || {});
+  headers.set("Authorization", "Bearer " + driveAccessToken);
+  // For some endpoints, API key isn't needed when bearer is present, but harmless for list/search.
+  const finalUrl = url.includes("?") ? `${url}&key=${encodeURIComponent(GOOGLE_API_KEY)}` : `${url}?key=${encodeURIComponent(GOOGLE_API_KEY)}`;
+  const res = await fetch(finalUrl, { ...opts, headers });
+  if(!res.ok){
+    const text = await res.text().catch(()=> "");
+    throw new Error(`Drive API error ${res.status}: ${text}`);
+  }
+  return res;
+}
+
+async function findOrCreateDriveFile(){
+  // Search file in appDataFolder
+  const q = `name='${DRIVE_FILENAME.replace(/'/g,"\\'")}' and trashed=false`;
+  const res = await driveFetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name,modifiedTime,etag)&q=${encodeURIComponent(q)}`);
+  const data = await res.json();
+  if(data.files && data.files.length){
+    driveFileId = data.files[0].id;
+    lastDriveEtag = data.files[0].etag || null;
+    return driveFileId;
+  }
+
+  // Create empty file with current state
+  const metadata = {
+    name: DRIVE_FILENAME,
+    parents: ["appDataFolder"],
+    mimeType: "application/json"
+  };
+
+  const boundary = "-------tdaBoundary" + Math.random().toString(16).slice(2);
+  const body =
+    `--${boundary}\r\n` +
+    `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+    `${JSON.stringify(metadata)}\r\n` +
+    `--${boundary}\r\n` +
+    `Content-Type: application/json\r\n\r\n` +
+    `${JSON.stringify(state)}\r\n` +
+    `--${boundary}--`;
+
+  const createRes = await driveFetch(`https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,etag`, {
+    method: "POST",
+    headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
+    body
+  });
+  const created = await createRes.json();
+  driveFileId = created.id;
+  lastDriveEtag = created.etag || null;
+  return driveFileId;
+}
+
+async function pullFromDrive(){
+  if(!driveFileId) await findOrCreateDriveFile();
+
+  // Download content (alt=media)
+  const res = await driveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(driveFileId)}?alt=media`);
+  const text = await res.text();
+  const parsed = JSON.parse(text);
+
+  // Merge defaults
+  state = deepMergeDefault(parsed);
+  saveStateLocal();
+}
+
+async function pushToDrive(){
+  if(!driveFileId) await findOrCreateDriveFile();
+
+  const body = JSON.stringify(state);
+
+  const res = await driveFetch(`https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(driveFileId)}?uploadType=media&fields=etag`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json; charset=UTF-8",
+      // Optionnel : protection simple contre overwrite si etag connu
+      ...(lastDriveEtag ? { "If-Match": lastDriveEtag } : {})
     },
-    timerPreset: {
-      focusMin: 25,
-      breakMin: 5,
-      longBreakMin: 15,
-      blocksBeforeLongBreak: 4
-    }
-  };
+    body
+  });
 
-  function uid(){
-    return Math.random().toString(16).slice(2) + Date.now().toString(16);
-  }
-  function todayKey(){
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth()+1).padStart(2,"0");
-    const day = String(d.getDate()).padStart(2,"0");
-    return `${y}-${m}-${day}`;
-  }
-  function loadState(){
+  // Update etag for next optimistic write
+  const json = await res.json();
+  lastDriveEtag = json.etag || lastDriveEtag;
+}
+
+function scheduleAutoSync(){
+  if(!driveAccessToken) return;
+  syncDirty = true;
+  if(syncThrottleTimer) return;
+
+  syncThrottleTimer = setTimeout(async () => {
+    syncThrottleTimer = null;
+    if(!syncDirty) return;
+    syncDirty = false;
     try{
-      const raw = localStorage.getItem(LS_KEY);
-      if(!raw) return structuredClone(DEFAULT_STATE);
-      const parsed = JSON.parse(raw);
-      return {
-        ...structuredClone(DEFAULT_STATE),
-        ...parsed,
-        settings: { ...DEFAULT_STATE.settings, ...(parsed.settings||{}) },
-        timerPreset: { ...DEFAULT_STATE.timerPreset, ...(parsed.timerPreset||{}) },
-        ritualByDay: parsed.ritualByDay || {},
-        inbox: Array.isArray(parsed.inbox)? parsed.inbox : [],
-        active: Array.isArray(parsed.active)? parsed.active : [],
-        parking: Array.isArray(parsed.parking)? parsed.parking : []
-      };
+      setDriveUI("Drive: sync…", "wait");
+      await pushToDrive();
+      setDriveUI("Drive: synchronisé", "ok");
     }catch(e){
-      return structuredClone(DEFAULT_STATE);
+      // If etag mismatch (conflit) -> re-pull then re-push could be added; ici on signale.
+      setDriveUI("Drive: erreur sync", "warn");
+      console.warn(e);
     }
-  }
-  function saveState(){
-    localStorage.setItem(LS_KEY, JSON.stringify(state));
-  }
+  }, 1200); // throttle: 1.2s
+}
 
-  let state = loadState();
-  const day = todayKey();
-  document.getElementById("today").textContent = day;
-
-  function getRitual(){
-    return state.ritualByDay[day] || { startDone:false, endDone:false, chosenTop3: [] };
+async function connectGoogle(){
+  if(!canDrive()){
+    alert("Ajoute GOOGLE_CLIENT_ID et GOOGLE_API_KEY dans le fichier.");
+    return;
   }
-  function setRitual(patch){
+  setDriveUI("Drive: connexion…", "wait");
+  gTokenClient.requestAccessToken({ prompt: "" });
+}
+
+function disconnectGoogle(){
+  driveAccessToken = null;
+  driveFileId = null;
+  lastDriveEtag = null;
+  btnSyncNow.disabled = true;
+  btnSignOut.disabled = true;
+  setDriveUI("Drive: non connecté", "warn");
+}
+
+async function onConnected(token){
+  driveAccessToken = token;
+  btnSyncNow.disabled = false;
+  btnSignOut.disabled = false;
+  setDriveUI("Drive: connecté", "ok");
+
+  try{
+    setDriveUI("Drive: chargement…", "wait");
+    await findOrCreateDriveFile();
+    await pullFromDrive();   // Drive → local
+    renderAll();
+    setDriveUI("Drive: synchronisé", "ok");
+  }catch(e){
+    console.warn(e);
+    setDriveUI("Drive: erreur chargement", "warn");
+  }
+}
+
+btnSignIn.addEventListener("click", connectGoogle);
+btnSignOut.addEventListener("click", disconnectGoogle);
+btnSyncNow.addEventListener("click", async () => {
+  if(!driveAccessToken) return;
+  try{
+    setDriveUI("Drive: sync…", "wait");
+    await pushToDrive();
+    setDriveUI("Drive: synchronisé", "ok");
+  }catch(e){
+    console.warn(e);
+    setDriveUI("Drive: erreur sync", "warn");
+  }
+});
+
+// Init GIS token client
+window.addEventListener("load", () => {
+  if(!canDrive()){
+    setDriveUI("Drive: clés manquantes", "warn");
+    return;
+  }
+  gTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: DRIVE_SCOPE,
+    callback: (resp) => {
+      if(resp && resp.access_token){
+        onConnected(resp.access_token);
+      }else{
+        setDriveUI("Drive: accès refusé", "warn");
+      }
+    }
+  });
+  setDriveUI("Drive: prêt", "wait");
+});
+
+/** ===========================
+ *  APP LOGIC (identique)
+ *  =========================== */
+const day = todayKey();
+document.getElementById("today").textContent = day;
+
+function getRitual(){
+  return state.ritualByDay[day] || { startDone:false, endDone:false, chosenTop3: [] };
+}
+function setRitual(patch){
+  const r = getRitual();
+  state.ritualByDay[day] = { ...r, ...patch };
+  saveState();
+  renderAll();
+}
+
+function saveState(){
+  saveStateLocal();
+  scheduleAutoSync(); // <-- Drive auto-sync (throttled)
+}
+
+function tagLabel(tag){
+  if(tag === "pro") return "Pro";
+  if(tag === "perso") return "Perso";
+  return "Mix";
+}
+
+// Tabs
+const tabs = document.querySelectorAll(".tab");
+const sections = {
+  lists: document.getElementById("tab-lists"),
+  focus: document.getElementById("tab-focus"),
+  rituals: document.getElementById("tab-rituals"),
+  plan: document.getElementById("tab-plan"),
+};
+tabs.forEach(t => t.addEventListener("click", () => {
+  tabs.forEach(x => x.classList.remove("active"));
+  t.classList.add("active");
+  const name = t.dataset.tab;
+  Object.keys(sections).forEach(k => sections[k].classList.toggle("hidden", k !== name));
+}));
+
+// CRUD
+function addItem(listName, text, tag){
+  const t = (text||"").trim();
+  if(!t) return;
+  const item = { id: uid(), text: t, tag: tag||"pro", createdAt: Date.now(), done:false, notes:"" };
+  state[listName] = [item, ...state[listName]];
+  saveState(); renderAll();
+}
+function removeItem(listName, id){
+  state[listName] = state[listName].filter(x => x.id !== id);
+  const r = getRitual();
+  if(r.chosenTop3.includes(id)){
+    setRitual({ chosenTop3: r.chosenTop3.filter(x => x !== id) });
+    return;
+  }
+  saveState(); renderAll();
+}
+function toggleDone(listName, id){
+  state[listName] = state[listName].map(x => x.id === id ? { ...x, done: !x.done } : x);
+  saveState(); renderAll();
+}
+function moveItem(from, to, id){
+  const src = state[from];
+  const item = src.find(x => x.id === id);
+  if(!item) return;
+  if(to === "active" && state.active.length >= state.settings.activeLimit) return;
+  state[from] = src.filter(x => x.id !== id);
+  state[to] = [item, ...state[to]];
+  saveState(); renderAll();
+}
+function setNotes(listName, id, notes){
+  state[listName] = state[listName].map(x => x.id === id ? { ...x, notes: notes } : x);
+  saveState(); renderAll();
+}
+
+function toggleTop3(id){
+  const r = getRitual();
+  const has = r.chosenTop3.includes(id);
+  if(has){ setRitual({ chosenTop3: r.chosenTop3.filter(x => x !== id) }); return; }
+  if(r.chosenTop3.length >= 3) return;
+  setRitual({ chosenTop3: [...r.chosenTop3, id] });
+}
+function findItemEverywhere(id){
+  return [...state.active, ...state.inbox, ...state.parking].find(x => x.id === id);
+}
+function escapeHtml(str){
+  return (str||"").replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]));
+}
+
+// Render
+function renderList(listName, containerId, emptyId){
+  const el = document.getElementById(containerId);
+  const empty = document.getElementById(emptyId);
+  el.innerHTML = "";
+  const items = state[listName];
+  empty.classList.toggle("hidden", items.length !== 0);
+
+  items.forEach(item => {
+    const div = document.createElement("div");
+    div.className = "item";
     const r = getRitual();
-    state.ritualByDay[day] = { ...r, ...patch };
-    saveState();
-    renderAll();
-  }
+    const isTop3 = r.chosenTop3.includes(item.id);
 
-  function tagLabel(tag){
-    if(tag === "pro") return "Pro";
-    if(tag === "perso") return "Perso";
-    return "Mix";
-  }
-
-  // ====== TABS ======
-  const tabs = document.querySelectorAll(".tab");
-  const sections = {
-    lists: document.getElementById("tab-lists"),
-    focus: document.getElementById("tab-focus"),
-    rituals: document.getElementById("tab-rituals"),
-    plan: document.getElementById("tab-plan"),
-  };
-
-  tabs.forEach(t => t.addEventListener("click", () => {
-    tabs.forEach(x => x.classList.remove("active"));
-    t.classList.add("active");
-    const name = t.dataset.tab;
-    Object.keys(sections).forEach(k => sections[k].classList.toggle("hidden", k !== name));
-  }));
-
-  // ====== CRUD ======
-  function addItem(listName, text, tag){
-    const t = (text||"").trim();
-    if(!t) return;
-    const item = { id: uid(), text: t, tag: tag||"pro", createdAt: Date.now(), done:false, notes:"" };
-    state[listName] = [item, ...state[listName]];
-    saveState();
-    renderAll();
-  }
-  function removeItem(listName, id){
-    state[listName] = state[listName].filter(x => x.id !== id);
-    const r = getRitual();
-    if(r.chosenTop3.includes(id)){
-      setRitual({ chosenTop3: r.chosenTop3.filter(x => x !== id) });
-      return;
-    }
-    saveState();
-    renderAll();
-  }
-  function toggleDone(listName, id){
-    state[listName] = state[listName].map(x => x.id === id ? { ...x, done: !x.done } : x);
-    saveState();
-    renderAll();
-  }
-  function moveItem(from, to, id){
-    const src = state[from];
-    const item = src.find(x => x.id === id);
-    if(!item) return;
-
-    if(to === "active" && state.active.length >= state.settings.activeLimit){
-      // active full
-      return;
-    }
-    state[from] = src.filter(x => x.id !== id);
-    state[to] = [item, ...state[to]];
-    saveState();
-    renderAll();
-  }
-  function setNotes(listName, id, notes){
-    state[listName] = state[listName].map(x => x.id === id ? { ...x, notes: notes } : x);
-    saveState();
-    renderAll();
-  }
-
-  function toggleTop3(id){
-    const r = getRitual();
-    const has = r.chosenTop3.includes(id);
-    if(has){
-      setRitual({ chosenTop3: r.chosenTop3.filter(x => x !== id) });
-      return;
-    }
-    if(r.chosenTop3.length >= 3) return;
-    setRitual({ chosenTop3: [...r.chosenTop3, id] });
-  }
-
-  function findItemEverywhere(id){
-    return [...state.active, ...state.inbox, ...state.parking].find(x => x.id === id);
-  }
-
-  // ====== RENDER ITEMS ======
-  function renderList(listName, containerId, emptyId){
-    const el = document.getElementById(containerId);
-    const empty = document.getElementById(emptyId);
-    el.innerHTML = "";
-    const items = state[listName];
-    empty.classList.toggle("hidden", items.length !== 0);
-
-    items.forEach(item => {
-      const div = document.createElement("div");
-      div.className = "item";
-
-      const r = getRitual();
-      const isTop3 = r.chosenTop3.includes(item.id);
-
-      div.innerHTML = `
-        <div class="item-top">
-          <div class="item-left">
-            <div class="chk ${item.done ? "done" : ""}" title="Fait / Pas fait">${item.done ? "✓" : ""}</div>
-            <div class="item-text">
-              <div class="t ${item.done ? "done" : ""}" title="${escapeHtml(item.text)}">${escapeHtml(item.text)}</div>
-              <div class="meta">
-                <span class="chip">${tagLabel(item.tag)}</span>
-                ${isTop3 ? `<span class="chip badge">Top 3</span>` : ``}
-              </div>
+    div.innerHTML = `
+      <div class="item-top">
+        <div class="item-left">
+          <div class="chk ${item.done ? "done" : ""}" title="Fait / Pas fait">${item.done ? "✓" : ""}</div>
+          <div class="item-text">
+            <div class="t ${item.done ? "done" : ""}" title="${escapeHtml(item.text)}">${escapeHtml(item.text)}</div>
+            <div class="meta">
+              <span class="chip">${tagLabel(item.tag)}</span>
+              ${isTop3 ? `<span class="chip badge">Top 3</span>` : ``}
             </div>
           </div>
-          <div class="item-actions">
-            <button class="btn mini" data-act="top3" title="Mettre dans Top 3 (max 3)">🔥</button>
-            <button class="btn mini" data-act="notes" title="Notes / prochain pas">📝</button>
-            <button class="btn mini danger" data-act="del" title="Supprimer">🗑️</button>
+        </div>
+        <div class="item-actions">
+          <button class="btn mini" data-act="top3" title="Mettre dans Top 3 (max 3)">🔥</button>
+          <button class="btn mini" data-act="notes" title="Notes / prochain pas">📝</button>
+          <button class="btn mini danger" data-act="del" title="Supprimer">🗑️</button>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        ${listName !== "active" ? `<button class="btn mini" data-act="toActive" ${state.active.length >= state.settings.activeLimit ? "disabled" : ""}>→ Active</button>` :
+          `<button class="btn mini" data-act="toInbox">→ Inbox</button>`}
+        ${listName !== "parking" ? `<button class="btn mini" data-act="toParking">→ Parking</button>` :
+          `<button class="btn mini" data-act="toInbox">→ Inbox</button>`}
+      </div>
+
+      ${item.notes ? `<div class="notes"><div class="small" style="margin-bottom:6px;">Notes</div>${escapeHtml(item.notes)}</div>` : ``}
+    `;
+
+    div.querySelector(".chk").addEventListener("click", () => toggleDone(listName, item.id));
+    div.querySelector('[data-act="del"]').addEventListener("click", () => { if(confirm("Supprimer cet item ?")) removeItem(listName, item.id); });
+    div.querySelector('[data-act="top3"]').addEventListener("click", () => toggleTop3(item.id));
+    div.querySelector('[data-act="notes"]').addEventListener("click", () => {
+      const current = item.notes || "";
+      const val = prompt("Notes / prochain pas (≤ 2 min idéalement) :", current);
+      if(val === null) return;
+      setNotes(listName, item.id, val.trim());
+    });
+
+    const toActive = div.querySelector('[data-act="toActive"]');
+    if(toActive) toActive.addEventListener("click", () => moveItem(listName, "active", item.id));
+    const toParking = div.querySelector('[data-act="toParking"]');
+    if(toParking) toParking.addEventListener("click", () => moveItem(listName, "parking", item.id));
+    div.querySelectorAll('[data-act="toInbox"]').forEach(btn => btn.addEventListener("click", () => moveItem(listName, "inbox", item.id)));
+
+    el.appendChild(div);
+  });
+}
+
+function renderCounts(){
+  document.getElementById("countInbox").textContent = state.inbox.length;
+  document.getElementById("countActive").textContent = state.active.length;
+  document.getElementById("countParking").textContent = state.parking.length;
+  document.getElementById("activeLimitPill").textContent = state.settings.activeLimit;
+  document.getElementById("activeCountPill").textContent = state.active.length;
+  document.getElementById("activeLimitText").textContent = state.settings.activeLimit;
+  document.getElementById("activeFullBanner").classList.toggle("hidden", state.active.length < state.settings.activeLimit);
+}
+
+function renderTop3(){
+  const r = getRitual();
+  const list = document.getElementById("top3List");
+  const empty = document.getElementById("top3Empty");
+  list.innerHTML = "";
+  const items = r.chosenTop3.map(id => findItemEverywhere(id)).filter(Boolean);
+  empty.classList.toggle("hidden", items.length !== 0);
+  items.forEach(it => {
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `
+      <div class="item-top">
+        <div class="item-left">
+          <div class="logo" style="width:34px;height:34px;border-radius:14px;">🔥</div>
+          <div class="item-text">
+            <div class="t" title="${escapeHtml(it.text)}">${escapeHtml(it.text)}</div>
+            <div class="meta"><span class="chip">${tagLabel(it.tag)}</span></div>
           </div>
         </div>
-
-        <div class="row" style="margin-top:10px;">
-          ${listName !== "active" ? `<button class="btn mini" data-act="toActive" ${state.active.length >= state.settings.activeLimit ? "disabled" : ""}>→ Active</button>` :
-            `<button class="btn mini" data-act="toInbox">→ Inbox</button>`}
-          ${listName !== "parking" ? `<button class="btn mini" data-act="toParking">→ Parking</button>` :
-            `<button class="btn mini" data-act="toInbox">→ Inbox</button>`}
+        <div class="item-actions">
+          <button class="btn mini danger" title="Retirer">Retirer</button>
         </div>
-
-        ${item.notes ? `<div class="notes"><div class="small" style="margin-bottom:6px;">Notes</div>${escapeHtml(item.notes)}</div>` : ``}
-      `;
-
-      // Events
-      div.querySelector(".chk").addEventListener("click", () => toggleDone(listName, item.id));
-
-      div.querySelector('[data-act="del"]').addEventListener("click", () => {
-        if(confirm("Supprimer cet item ?")) removeItem(listName, item.id);
-      });
-
-      div.querySelector('[data-act="top3"]').addEventListener("click", () => toggleTop3(item.id));
-
-      const notesBtn = div.querySelector('[data-act="notes"]');
-      notesBtn.addEventListener("click", () => {
-        const current = item.notes || "";
-        const val = prompt("Notes / prochain pas (≤ 2 min idéalement) :", current);
-        if(val === null) return;
-        setNotes(listName, item.id, val.trim());
-      });
-
-      const toActive = div.querySelector('[data-act="toActive"]');
-      if(toActive) toActive.addEventListener("click", () => moveItem(listName, "active", item.id));
-
-      const toParking = div.querySelector('[data-act="toParking"]');
-      if(toParking) toParking.addEventListener("click", () => moveItem(listName, "parking", item.id));
-
-      const toInbox = div.querySelectorAll('[data-act="toInbox"]');
-      toInbox.forEach(btn => btn.addEventListener("click", () => moveItem(listName, "inbox", item.id)));
-
-      el.appendChild(div);
-    });
-  }
-
-  function escapeHtml(str){
-    return (str||"").replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]));
-  }
-
-  // ====== COUNTS + BANNERS ======
-  function renderCounts(){
-    document.getElementById("countInbox").textContent = state.inbox.length;
-    document.getElementById("countActive").textContent = state.active.length;
-    document.getElementById("countParking").textContent = state.parking.length;
-
-    document.getElementById("activeLimitPill").textContent = state.settings.activeLimit;
-    document.getElementById("activeCountPill").textContent = state.active.length;
-    document.getElementById("activeLimitText").textContent = state.settings.activeLimit;
-
-    const full = state.active.length >= state.settings.activeLimit;
-    document.getElementById("activeFullBanner").classList.toggle("hidden", !full);
-  }
-
-  // ====== TOP3 ======
-  function renderTop3(){
-    const r = getRitual();
-    const list = document.getElementById("top3List");
-    const empty = document.getElementById("top3Empty");
-    list.innerHTML = "";
-
-    const items = r.chosenTop3.map(id => findItemEverywhere(id)).filter(Boolean);
-    empty.classList.toggle("hidden", items.length !== 0);
-
-    items.forEach(it => {
-      const div = document.createElement("div");
-      div.className = "item";
-      div.innerHTML = `
-        <div class="item-top">
-          <div class="item-left">
-            <div class="logo" style="width:34px;height:34px;border-radius:14px;">🔥</div>
-            <div class="item-text">
-              <div class="t" title="${escapeHtml(it.text)}">${escapeHtml(it.text)}</div>
-              <div class="meta"><span class="chip">${tagLabel(it.tag)}</span></div>
-            </div>
-          </div>
-          <div class="item-actions">
-            <button class="btn mini danger" title="Retirer">Retirer</button>
-          </div>
-        </div>
-      `;
-      div.querySelector("button").addEventListener("click", () => toggleTop3(it.id));
-      list.appendChild(div);
-    });
-  }
-
-  // ====== RITUALS UI ======
-  function renderRituals(){
-    const r = getRitual();
-    const start = document.getElementById("ritualStartDone");
-    const end = document.getElementById("ritualEndDone");
-    start.checked = !!r.startDone;
-    end.checked = !!r.endDone;
-  }
-
-  document.getElementById("ritualStartDone").addEventListener("change", (e) => {
-    setRitual({ startDone: e.target.checked, startAt: e.target.checked ? Date.now() : undefined });
+      </div>`;
+    div.querySelector("button").addEventListener("click", () => toggleTop3(it.id));
+    list.appendChild(div);
   });
-  document.getElementById("ritualEndDone").addEventListener("change", (e) => {
-    setRitual({ endDone: e.target.checked, endAt: e.target.checked ? Date.now() : undefined });
-  });
+}
 
-  // ====== STRUCTURE SETTINGS ======
-  function renderStructureSettings(){
-    document.getElementById("activeLimitInput").value = state.settings.activeLimit;
+function renderRituals(){
+  const r = getRitual();
+  document.getElementById("ritualStartDone").checked = !!r.startDone;
+  document.getElementById("ritualEndDone").checked = !!r.endDone;
+}
+document.getElementById("ritualStartDone").addEventListener("change", (e) => setRitual({ startDone: e.target.checked, startAt: e.target.checked ? Date.now() : undefined }));
+document.getElementById("ritualEndDone").addEventListener("change", (e) => setRitual({ endDone: e.target.checked, endAt: e.target.checked ? Date.now() : undefined }));
+
+function renderStructureSettings(){
+  document.getElementById("activeLimitInput").value = state.settings.activeLimit;
+}
+document.getElementById("saveStructure").addEventListener("click", () => {
+  const v = Number(document.getElementById("activeLimitInput").value || 5);
+  state.settings.activeLimit = Math.min(7, Math.max(3, v));
+  saveState(); renderAll();
+  alert("Réglages enregistrés.");
+});
+
+// Wire add
+function wireAdd(inputId, tagId, btnId, listName){
+  const input = document.getElementById(inputId);
+  const tag = document.getElementById(tagId);
+  const btn = document.getElementById(btnId);
+  function go(){ addItem(listName, input.value, tag.value); input.value = ""; }
+  btn.addEventListener("click", go);
+  input.addEventListener("keydown", (e) => { if(e.key === "Enter"){ e.preventDefault(); go(); }});
+}
+wireAdd("addInboxText","addInboxTag","addInboxBtn","inbox");
+wireAdd("addParkingText","addParkingTag","addParkingBtn","parking");
+// Active with limit
+(() => {
+  const input = document.getElementById("addActiveText");
+  const tag = document.getElementById("addActiveTag");
+  const btn = document.getElementById("addActiveBtn");
+  function go(){
+    if(state.active.length >= state.settings.activeLimit) return;
+    addItem("active", input.value, tag.value);
+    input.value = "";
   }
-  document.getElementById("saveStructure").addEventListener("click", () => {
-    const v = Number(document.getElementById("activeLimitInput").value || 5);
-    state.settings.activeLimit = Math.min(7, Math.max(3, v));
-    // If active > limit, keep but banner warns; user can move items out.
-    saveState();
-    renderAll();
-    alert("Réglages enregistrés.");
-  });
+  btn.addEventListener("click", go);
+  input.addEventListener("keydown", (e) => { if(e.key === "Enter"){ e.preventDefault(); go(); }});
+})();
 
-  // ====== QUICK ADD + ADD FOR EACH LIST ======
-  function wireAdd(inputId, tagId, btnId, listName){
-    const input = document.getElementById(inputId);
-    const tag = document.getElementById(tagId);
-    const btn = document.getElementById(btnId);
+// Quick capture
+document.getElementById("quickAdd").addEventListener("click", () => {
+  const t = document.getElementById("quickText");
+  const tag = document.getElementById("quickTag");
+  addItem("inbox", t.value, tag.value);
+  t.value = "";
+});
+document.getElementById("quickText").addEventListener("keydown", (e) => {
+  if(e.key === "Enter"){ e.preventDefault(); document.getElementById("quickAdd").click(); }
+});
 
-    function go(){
-      addItem(listName, input.value, tag.value);
-      input.value = "";
-    }
-    btn.addEventListener("click", go);
-    input.addEventListener("keydown", (e) => {
-      if(e.key === "Enter"){
-        e.preventDefault();
-        go();
+// Export/import/reset
+document.getElementById("exportBtn").addEventListener("click", () => {
+  const payload = JSON.stringify(state, null, 2);
+  const blob = new Blob([payload], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `tda-structure-${day}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+document.getElementById("importInput").addEventListener("change", async (e) => {
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  try{
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    state = deepMergeDefault(parsed);
+    saveState(); renderAll();
+    alert("Import OK.");
+  }catch(err){
+    alert("Import impossible (JSON invalide).");
+  }finally{
+    e.target.value = "";
+  }
+});
+document.getElementById("resetBtn").addEventListener("click", () => {
+  if(!confirm("Réinitialiser Inbox/Active/Parking + rituels ? (Tu peux exporter avant)")) return;
+  state = structuredClone(DEFAULT_STATE);
+  saveState(); renderAll();
+});
+
+// Timer
+let phase = "focus"; // focus | break | long_break
+let running = false;
+let remainingSec = state.timerPreset.focusMin * 60;
+let blocksDone = 0;
+let tick = null;
+
+function secondsToClock(total){
+  total = Math.max(0, Math.floor(total));
+  const mm = Math.floor(total/60);
+  const ss = total % 60;
+  return String(mm).padStart(2,"0") + ":" + String(ss).padStart(2,"0");
+}
+function phaseLabel(){
+  if(phase === "focus") return "Focus";
+  if(phase === "break") return "Pause";
+  return "Pause longue";
+}
+function updateTimerUI(){
+  document.getElementById("phaseLabel").textContent = phaseLabel();
+  document.getElementById("blocksDone").textContent = blocksDone;
+  document.getElementById("timeLeft").textContent = secondsToClock(remainingSec);
+  document.getElementById("startPauseBtn").textContent = running ? "Pause" : "Démarrer";
+}
+function beep(){
+  try{
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if(!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = "sine"; o.frequency.value = 880; g.gain.value = 0.03;
+    o.connect(g); g.connect(ctx.destination);
+    o.start();
+    setTimeout(()=>{ o.stop(); ctx.close(); }, 220);
+  }catch(e){}
+}
+function vibrate(ms=160){
+  try{ if("vibrate" in navigator) navigator.vibrate(ms); }catch(e){}
+}
+function stopTick(){ if(tick){ clearInterval(tick); tick = null; } }
+function startTick(){
+  stopTick();
+  tick = setInterval(() => {
+    remainingSec -= 1;
+    if(remainingSec <= 0){
+      remainingSec = 0;
+      running = false;
+      stopTick();
+      if(state.settings.sound) beep();
+      if(state.settings.vibrate) vibrate();
+
+      if(phase === "focus"){
+        blocksDone += 1;
+        const isLong = (blocksDone % state.timerPreset.blocksBeforeLongBreak) === 0;
+        phase = isLong ? "long_break" : "break";
+        remainingSec = (isLong ? state.timerPreset.longBreakMin : state.timerPreset.breakMin) * 60;
+        if(state.settings.autoStartBreak){ running = true; startTick(); }
+      }else{
+        phase = "focus";
+        remainingSec = state.timerPreset.focusMin * 60;
+        if(state.settings.autoStartFocus){ running = true; startTick(); }
       }
-    });
-  }
-
-  wireAdd("addInboxText", "addInboxTag", "addInboxBtn", "inbox");
-  wireAdd("addParkingText", "addParkingTag", "addParkingBtn", "parking");
-  // Active respects limit
-  (function(){
-    const input = document.getElementById("addActiveText");
-    const tag = document.getElementById("addActiveTag");
-    const btn = document.getElementById("addActiveBtn");
-    function go(){
-      if(state.active.length >= state.settings.activeLimit) return;
-      addItem("active", input.value, tag.value);
-      input.value = "";
     }
-    btn.addEventListener("click", go);
-    input.addEventListener("keydown", (e) => {
-      if(e.key === "Enter"){
-        e.preventDefault();
-        go();
-      }
-    });
-  })();
-
-  // Quick capture always goes to inbox
-  document.getElementById("quickAdd").addEventListener("click", () => {
-    const t = document.getElementById("quickText");
-    const tag = document.getElementById("quickTag");
-    addItem("inbox", t.value, tag.value);
-    t.value = "";
-  });
-  document.getElementById("quickText").addEventListener("keydown", (e) => {
-    if(e.key === "Enter"){
-      e.preventDefault();
-      document.getElementById("quickAdd").click();
-    }
-  });
-
-  // ====== EXPORT / IMPORT / RESET ======
-  document.getElementById("exportBtn").addEventListener("click", () => {
-    const payload = JSON.stringify(state, null, 2);
-    const blob = new Blob([payload], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `tda-structure-${day}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  });
-
-  document.getElementById("importInput").addEventListener("change", async (e) => {
-    const file = e.target.files && e.target.files[0];
-    if(!file) return;
-    try{
-      const text = await file.text();
-      const parsed = JSON.parse(text);
-      state = {
-        ...structuredClone(DEFAULT_STATE),
-        ...parsed,
-        settings: { ...DEFAULT_STATE.settings, ...(parsed.settings||{}) },
-        timerPreset: { ...DEFAULT_STATE.timerPreset, ...(parsed.timerPreset||{}) },
-        ritualByDay: parsed.ritualByDay || {},
-        inbox: Array.isArray(parsed.inbox)? parsed.inbox : [],
-        active: Array.isArray(parsed.active)? parsed.active : [],
-        parking: Array.isArray(parsed.parking)? parsed.parking : []
-      };
-      saveState();
-      renderAll();
-      alert("Import OK.");
-    }catch(err){
-      alert("Import impossible (JSON invalide).");
-    }finally{
-      e.target.value = "";
-    }
-  });
-
-  document.getElementById("resetBtn").addEventListener("click", () => {
-    if(!confirm("Réinitialiser Inbox/Active/Parking + rituels ? (Tu peux exporter avant)")) return;
-    state = structuredClone(DEFAULT_STATE);
-    saveState();
-    renderAll();
-  });
-
-  // ====== TIMER ======
-  let phase = "focus"; // focus | break | long_break
-  let running = false;
-  let remainingSec = state.timerPreset.focusMin * 60;
-  let blocksDone = 0;
-  let tick = null;
-
-  function secondsToClock(total){
-    total = Math.max(0, Math.floor(total));
-    const mm = Math.floor(total/60);
-    const ss = total % 60;
-    return String(mm).padStart(2,"0") + ":" + String(ss).padStart(2,"0");
-  }
-
-  function phaseLabel(){
-    if(phase === "focus") return "Focus";
-    if(phase === "break") return "Pause";
-    return "Pause longue";
-  }
-
-  function updateTimerUI(){
-    document.getElementById("phaseLabel").textContent = phaseLabel();
-    document.getElementById("blocksDone").textContent = blocksDone;
-    document.getElementById("timeLeft").textContent = secondsToClock(remainingSec);
-    document.getElementById("startPauseBtn").textContent = running ? "Pause" : "Démarrer";
-  }
-
-  function beep(){
-    let snd = new Audio("data:audio/wav;base64,//uQRAAAAWMSLwUIYAAsYkXgoQwAEaYLWfkWgAI0wWs/ItAAAGDgYtAgAyN+QWaAAihwMWm4G8QQRDiMcCBcH3Cc+CDv/7xA4Tvh9Rz/y8QADBwMWgQAZG/ILNAARQ4GLTcDeIIIhxGOBAuD7hOfBB3/94gcJ3w+o5/5eIAIAAAVwWgQAVQ2ORaIQwEMAJiDg95G4nQL7mQVWI6GwRcfsZAcsKkJvxgxEjzFUgfHoSQ9Qq7KNwqHwuB13MA4a1q/DmBrHgPcmjiGoh//EwC5nGPEmS4RcfkVKOhJf+WOgoxJclFz3kgn//dBA+ya1GhurNn8zb//9NNutNuhz31f////9vt///z+IdAEAAAK4LQIAKobHItEIYCGAExBwe8jcToF9zIKrEdDYIuP2MgOWFSE34wYiR5iqQPj0JIeoVdlG4VD4XA67mAcNa1fhzA1jwHuTRxDUQ//iYBczjHiTJcIuPyKlHQkv/LHQUYkuSi57yQT//uggfZNajQ3Vmz+Zt//+mm3Wm3Q576v////+32///5/EOgAAADVghQAAAAA//uQZAUAB1WI0PZugAAAAAoQwAAAEk3nRd2qAAAAACiDgAAAAAAABCqEEQRLCgwpBGMlJkIz8jKhGvj4k6jzRnqasNKIeoh5gI7BJaC1A1AoNBjJgbyApVS4IDlZgDU5WUAxEKDNmmALHzZp0Fkz1FMTmGFl1FMEyodIavcCAUHDWrKAIA4aa2oCgILEBupZgHvAhEBcZ6joQBxS76AgccrFlczBvKLC0QI2cBoCFvfTDAo7eoOQInqDPBtvrDEZBNYN5xwNwxQRfw8ZQ5wQVLvO8OYU+mHvFLlDh05Mdg7BT6YrRPpCBznMB2r//xKJjyyOh+cImr2/4doscwD6neZjuZR4AgAABYAAAABy1xcdQtxYBYYZdifkUDgzzXaXn98Z0oi9ILU5mBjFANmRwlVJ3/6jYDAmxaiDG3/6xjQQCCKkRb/6kg/wW+kSJ5//rLobkLSiKmqP/0ikJuDaSaSf/6JiLYLEYnW/+kXg1WRVJL/9EmQ1YZIsv/6Qzwy5qk7/+tEU0nkls3/zIUMPKNX/6yZLf+kFgAfgGyLFAUwY//uQZAUABcd5UiNPVXAAAApAAAAAE0VZQKw9ISAAACgAAAAAVQIygIElVrFkBS+Jhi+EAuu+lKAkYUEIsmEAEoMeDmCETMvfSHTGkF5RWH7kz/ESHWPAq/kcCRhqBtMdokPdM7vil7RG98A2sc7zO6ZvTdM7pmOUAZTnJW+NXxqmd41dqJ6mLTXxrPpnV8avaIf5SvL7pndPvPpndJR9Kuu8fePvuiuhorgWjp7Mf/PRjxcFCPDkW31srioCExivv9lcwKEaHsf/7ow2Fl1T/9RkXgEhYElAoCLFtMArxwivDJJ+bR1HTKJdlEoTELCIqgEwVGSQ+hIm0NbK8WXcTEI0UPoa2NbG4y2K00JEWbZavJXkYaqo9CRHS55FcZTjKEk3NKoCYUnSQ0rWxrZbFKbKIhOKPZe1cJKzZSaQrIyULHDZmV5K4xySsDRKWOruanGtjLJXFEmwaIbDLX0hIPBUQPVFVkQkDoUNfSoDgQGKPekoxeGzA4DUvnn4bxzcZrtJyipKfPNy5w+9lnXwgqsiyHNeSVpemw4bWb9psYeq//uQZBoABQt4yMVxYAIAAAkQoAAAHvYpL5m6AAgAACXDAAAAD59jblTirQe9upFsmZbpMudy7Lz1X1DYsxOOSWpfPqNX2WqktK0DMvuGwlbNj44TleLPQ+Gsfb+GOWOKJoIrWb3cIMeeON6lz2umTqMXV8Mj30yWPpjoSa9ujK8SyeJP5y5mOW1D6hvLepeveEAEDo0mgCRClOEgANv3B9a6fikgUSu/DmAMATrGx7nng5p5iimPNZsfQLYB2sDLIkzRKZOHGAaUyDcpFBSLG9MCQALgAIgQs2YunOszLSAyQYPVC2YdGGeHD2dTdJk1pAHGAWDjnkcLKFymS3RQZTInzySoBwMG0QueC3gMsCEYxUqlrcxK6k1LQQcsmyYeQPdC2YfuGPASCBkcVMQQqpVJshui1tkXQJQV0OXGAZMXSOEEBRirXbVRQW7ugq7IM7rPWSZyDlM3IuNEkxzCOJ0ny2ThNkyRai1b6ev//3dzNGzNb//4uAvHT5sURcZCFcuKLhOFs8mLAAEAt4UWAAIABAAAAAB4qbHo0tIjVkUU//uQZAwABfSFz3ZqQAAAAAngwAAAE1HjMp2qAAAAACZDgAAAD5UkTE1UgZEUExqYynN1qZvqIOREEFmBcJQkwdxiFtw0qEOkGYfRDifBui9MQg4QAHAqWtAWHoCxu1Yf4VfWLPIM2mHDFsbQEVGwyqQoQcwnfHeIkNt9YnkiaS1oizycqJrx4KOQjahZxWbcZgztj2c49nKmkId44S71j0c8eV9yDK6uPRzx5X18eDvjvQ6yKo9ZSS6l//8elePK/Lf//IInrOF/FvDoADYAGBMGb7FtErm5MXMlmPAJQVgWta7Zx2go+8xJ0UiCb8LHHdftWyLJE0QIAIsI+UbXu67dZMjmgDGCGl1H+vpF4NSDckSIkk7Vd+sxEhBQMRU8j/12UIRhzSaUdQ+rQU5kGeFxm+hb1oh6pWWmv3uvmReDl0UnvtapVaIzo1jZbf/pD6ElLqSX+rUmOQNpJFa/r+sa4e/pBlAABoAAAAA3CUgShLdGIxsY7AUABPRrgCABdDuQ5GC7DqPQCgbbJUAoRSUj+NIEig0YfyWUho1VBBBA//uQZB4ABZx5zfMakeAAAAmwAAAAF5F3P0w9GtAAACfAAAAAwLhMDmAYWMgVEG1U0FIGCBgXBXAtfMH10000EEEEEECUBYln03TTTdNBDZopopYvrTTdNa325mImNg3TTPV9q3pmY0xoO6bv3r00y+IDGid/9aaaZTGMuj9mpu9Mpio1dXrr5HERTZSmqU36A3CumzN/9Robv/Xx4v9ijkSRSNLQhAWumap82WRSBUqXStV/YcS+XVLnSS+WLDroqArFkMEsAS+eWmrUzrO0oEmE40RlMZ5+ODIkAyKAGUwZ3mVKmcamcJnMW26MRPgUw6j+LkhyHGVGYjSUUKNpuJUQoOIAyDvEyG8S5yfK6dhZc0Tx1KI/gviKL6qvvFs1+bWtaz58uUNnryq6kt5RzOCkPWlVqVX2a/EEBUdU1KrXLf40GoiiFXK///qpoiDXrOgqDR38JB0bw7SoL+ZB9o1RCkQjQ2CBYZKd/+VJxZRRZlqSkKiws0WFxUyCwsKiMy7hUVFhIaCrNQsKkTIsLivwKKigsj8XYlwt/WKi2N4d//uQRCSAAjURNIHpMZBGYiaQPSYyAAABLAAAAAAAACWAAAAApUF/Mg+0aohSIRobBAsMlO//Kk4soosy1JSFRYWaLC4qZBYWFRGZdwqKiwkNBVmoWFSJkWFxX4FFRQWR+LsS4W/rFRb/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////VEFHAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAU291bmRib3kuZGUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMjAwNGh0dHA6Ly93d3cuc291bmRib3kuZGUAAAAAAAAAACU=");  
-    snd.play();
-  }
-  function vibrate(ms=160){
-    try{
-      if("vibrate" in navigator) navigator.vibrate(ms);
-    }catch(e){}
-  }
-
-  function stopTick(){
-    if(tick){ clearInterval(tick); tick = null; }
-  }
-  function startTick(){
-    stopTick();
-    tick = setInterval(() => {
-      remainingSec -= 1;
-      if(remainingSec <= 0){
-        remainingSec = 0;
-        running = false;
-        stopTick();
-        if(state.settings.sound) beep();
-        if(state.settings.vibrate) vibrate();
-
-        if(phase === "focus"){
-          blocksDone += 1;
-          const isLong = (blocksDone % state.timerPreset.blocksBeforeLongBreak) === 0;
-          phase = isLong ? "long_break" : "break";
-          remainingSec = (isLong ? state.timerPreset.longBreakMin : state.timerPreset.breakMin) * 60;
-          if(state.settings.autoStartBreak){ running = true; startTick(); }
-        }else{
-          phase = "focus";
-          remainingSec = state.timerPreset.focusMin * 60;
-          if(state.settings.autoStartFocus){ running = true; startTick(); }
-        }
-      }
-      updateTimerUI();
-    }, 1000);
-  }
-
-  document.getElementById("startPauseBtn").addEventListener("click", () => {
-    running = !running;
-    if(running) startTick(); else stopTick();
     updateTimerUI();
-  });
+  }, 1000);
+}
+document.getElementById("startPauseBtn").addEventListener("click", () => { running = !running; if(running) startTick(); else stopTick(); updateTimerUI(); });
+document.getElementById("resetTimerBtn").addEventListener("click", () => {
+  running = false; stopTick();
+  if(phase === "focus") remainingSec = state.timerPreset.focusMin * 60;
+  if(phase === "break") remainingSec = state.timerPreset.breakMin * 60;
+  if(phase === "long_break") remainingSec = state.timerPreset.longBreakMin * 60;
+  updateTimerUI();
+});
+document.getElementById("setFocusBtn").addEventListener("click", () => { running=false; stopTick(); phase="focus"; remainingSec=state.timerPreset.focusMin*60; updateTimerUI(); });
+document.getElementById("setBreakBtn").addEventListener("click", () => { running=false; stopTick(); phase="break"; remainingSec=state.timerPreset.breakMin*60; updateTimerUI(); });
+document.getElementById("setLongBreakBtn").addEventListener("click", () => { running=false; stopTick(); phase="long_break"; remainingSec=state.timerPreset.longBreakMin*60; updateTimerUI(); });
 
-  document.getElementById("resetTimerBtn").addEventListener("click", () => {
-    running = false; stopTick();
+function clampNum(val, min, max, fallback){
+  const n = Number(val);
+  if(!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+function renderTimerSettings(){
+  document.getElementById("focusMin").value = state.timerPreset.focusMin;
+  document.getElementById("breakMin").value = state.timerPreset.breakMin;
+  document.getElementById("longBreakMin").value = state.timerPreset.longBreakMin;
+  document.getElementById("blocksBeforeLong").value = state.timerPreset.blocksBeforeLongBreak;
+
+  document.getElementById("soundOn").checked = !!state.settings.sound;
+  document.getElementById("vibrateOn").checked = !!state.settings.vibrate;
+  document.getElementById("autoStartBreak").checked = !!state.settings.autoStartBreak;
+  document.getElementById("autoStartFocus").checked = !!state.settings.autoStartFocus;
+}
+document.getElementById("saveTimerSettings").addEventListener("click", () => {
+  state.timerPreset.focusMin = clampNum(document.getElementById("focusMin").value, 5, 90, 25);
+  state.timerPreset.breakMin = clampNum(document.getElementById("breakMin").value, 1, 30, 5);
+  state.timerPreset.longBreakMin = clampNum(document.getElementById("longBreakMin").value, 5, 60, 15);
+  state.timerPreset.blocksBeforeLongBreak = clampNum(document.getElementById("blocksBeforeLong").value, 2, 8, 4);
+
+  state.settings.sound = document.getElementById("soundOn").checked;
+  state.settings.vibrate = document.getElementById("vibrateOn").checked;
+  state.settings.autoStartBreak = document.getElementById("autoStartBreak").checked;
+  state.settings.autoStartFocus = document.getElementById("autoStartFocus").checked;
+
+  saveState();
+  if(!running){
     if(phase === "focus") remainingSec = state.timerPreset.focusMin * 60;
     if(phase === "break") remainingSec = state.timerPreset.breakMin * 60;
     if(phase === "long_break") remainingSec = state.timerPreset.longBreakMin * 60;
-    updateTimerUI();
-  });
-
-  document.getElementById("setFocusBtn").addEventListener("click", () => {
-    running = false; stopTick();
-    phase = "focus";
-    remainingSec = state.timerPreset.focusMin * 60;
-    updateTimerUI();
-  });
-  document.getElementById("setBreakBtn").addEventListener("click", () => {
-    running = false; stopTick();
-    phase = "break";
-    remainingSec = state.timerPreset.breakMin * 60;
-    updateTimerUI();
-  });
-  document.getElementById("setLongBreakBtn").addEventListener("click", () => {
-    running = false; stopTick();
-    phase = "long_break";
-    remainingSec = state.timerPreset.longBreakMin * 60;
-    updateTimerUI();
-  });
-
-  function renderTimerSettings(){
-    document.getElementById("focusMin").value = state.timerPreset.focusMin;
-    document.getElementById("breakMin").value = state.timerPreset.breakMin;
-    document.getElementById("longBreakMin").value = state.timerPreset.longBreakMin;
-    document.getElementById("blocksBeforeLong").value = state.timerPreset.blocksBeforeLongBreak;
-
-    document.getElementById("soundOn").checked = !!state.settings.sound;
-    document.getElementById("vibrateOn").checked = !!state.settings.vibrate;
-    document.getElementById("autoStartBreak").checked = !!state.settings.autoStartBreak;
-    document.getElementById("autoStartFocus").checked = !!state.settings.autoStartFocus;
   }
+  updateTimerUI();
+  alert("Réglages timer enregistrés.");
+});
 
-  document.getElementById("saveTimerSettings").addEventListener("click", () => {
-    state.timerPreset.focusMin = clampNum(document.getElementById("focusMin").value, 5, 90, 25);
-    state.timerPreset.breakMin = clampNum(document.getElementById("breakMin").value, 1, 30, 5);
-    state.timerPreset.longBreakMin = clampNum(document.getElementById("longBreakMin").value, 5, 60, 15);
-    state.timerPreset.blocksBeforeLongBreak = clampNum(document.getElementById("blocksBeforeLong").value, 2, 8, 4);
-
-    state.settings.sound = document.getElementById("soundOn").checked;
-    state.settings.vibrate = document.getElementById("vibrateOn").checked;
-    state.settings.autoStartBreak = document.getElementById("autoStartBreak").checked;
-    state.settings.autoStartFocus = document.getElementById("autoStartFocus").checked;
-
-    saveState();
-
-    // if not running, refresh remaining to current phase
-    if(!running){
-      if(phase === "focus") remainingSec = state.timerPreset.focusMin * 60;
-      if(phase === "break") remainingSec = state.timerPreset.breakMin * 60;
-      if(phase === "long_break") remainingSec = state.timerPreset.longBreakMin * 60;
-    }
-    updateTimerUI();
-    alert("Réglages timer enregistrés.");
-  });
-
-  function clampNum(val, min, max, fallback){
-    const n = Number(val);
-    if(!Number.isFinite(n)) return fallback;
-    return Math.max(min, Math.min(max, n));
-  }
-
-  // ====== PLAN 7J ======
-  const PLAN = [
-    { day: "Jour 1–2", title:"Inbox unique", desc:"Choisis UNE inbox. Supprime les autres listes. Capture tout, sans réfléchir." },
-    { day: "Jour 3", title:"Liste Active (max 5)", desc:"Crée ta liste Active. Si >5 → ton cerveau décroche : on coupe." },
-    { day: "Jour 4", title:"Blocs courts", desc:"Teste 25 min (ou 15). Objectif : un point d’entrée clair." },
-    { day: "Jour 5", title:"Rituels 5 min", desc:"Début/fin de journée : vider inbox + définir le prochain pas." },
-    { day: "Jour 6", title:"Ajuste sans culpabilité", desc:"Durée des blocs, limites, alarms : adapte au réel." },
-    { day: "Jour 7", title:"Bilan utile", desc:"Qu’est-ce qui aide vraiment ? Qu’est-ce qui est du bruit ?" },
-  ];
-
-  function renderPlan(){
-    const el = document.getElementById("planList");
-    el.innerHTML = "";
-    PLAN.forEach(p => {
-      const div = document.createElement("div");
-      div.className = "item";
-      div.innerHTML = `
-        <div class="item-top">
-          <div class="item-left">
-            <div class="logo" style="width:34px;height:34px;border-radius:14px;">📌</div>
-            <div class="item-text">
-              <div class="t"><strong>${escapeHtml(p.day)}</strong> • ${escapeHtml(p.title)}</div>
-              <div class="meta"><span class="chip">${escapeHtml(p.desc)}</span></div>
-            </div>
+// Plan 7j
+const PLAN = [
+  { day: "Jour 1–2", title:"Inbox unique", desc:"Choisis UNE inbox. Supprime les autres listes. Capture tout, sans réfléchir." },
+  { day: "Jour 3", title:"Liste Active (max 5)", desc:"Crée ta liste Active. Si >5 → ton cerveau décroche : on coupe." },
+  { day: "Jour 4", title:"Blocs courts", desc:"Teste 25 min (ou 15). Objectif : un point d’entrée clair." },
+  { day: "Jour 5", title:"Rituels 5 min", desc:"Début/fin de journée : vider inbox + définir le prochain pas." },
+  { day: "Jour 6", title:"Ajuste sans culpabilité", desc:"Durée des blocs, limites, alarms : adapte au réel." },
+  { day: "Jour 7", title:"Bilan utile", desc:"Qu’est-ce qui aide vraiment ? Qu’est-ce qui est du bruit ?" },
+];
+function renderPlan(){
+  const el = document.getElementById("planList");
+  el.innerHTML = "";
+  PLAN.forEach(p => {
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `
+      <div class="item-top">
+        <div class="item-left">
+          <div class="logo" style="width:34px;height:34px;border-radius:14px;">📌</div>
+          <div class="item-text">
+            <div class="t"><strong>${escapeHtml(p.day)}</strong> • ${escapeHtml(p.title)}</div>
+            <div class="meta"><span class="chip">${escapeHtml(p.desc)}</span></div>
           </div>
         </div>
-      `;
-      el.appendChild(div);
-    });
-  }
+      </div>`;
+    el.appendChild(div);
+  });
+}
 
-  // ====== RENDER ALL ======
-  function renderAll(){
-    renderCounts();
-    renderList("inbox", "listInbox", "emptyInbox");
-    renderList("active", "listActive", "emptyActive");
-    renderList("parking", "listParking", "emptyParking");
-    renderTop3();
-    renderRituals();
-    renderStructureSettings();
-    renderTimerSettings();
-    renderPlan();
-    updateTimerUI();
-  }
+function renderAll(){
+  renderCounts();
+  renderList("inbox","listInbox","emptyInbox");
+  renderList("active","listActive","emptyActive");
+  renderList("parking","listParking","emptyParking");
+  renderTop3();
+  renderRituals();
+  renderStructureSettings();
+  renderTimerSettings();
+  renderPlan();
+  updateTimerUI();
+}
 
-  // Initial
-  renderAll();
+// Init
+renderAll();
+updateTimerUI();
 </script>
 </body>
 </html>
