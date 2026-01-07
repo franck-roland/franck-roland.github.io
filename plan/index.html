@@ -545,7 +545,7 @@ let driveFileId = null;
 
 let syncThrottleTimer = null;
 let syncDirty = false;
-let lastDriveEtag = null;
+let lastDriveVersion = null;
 
 const driveDot = document.getElementById("driveDot");
 const driveStatus = document.getElementById("driveStatus");
@@ -579,11 +579,11 @@ async function driveFetch(url, opts={}){
 async function findOrCreateDriveFile(){
   // Search file in appDataFolder
   const q = `name='${DRIVE_FILENAME.replace(/'/g,"\\'")}' and trashed=false`;
-  const res = await driveFetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name,modifiedTime,etag)&q=${encodeURIComponent(q)}`);
+  const res = await driveFetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name,modifiedTime,version)&q=${encodeURIComponent(q)}`);
   const data = await res.json();
   if(data.files && data.files.length){
     driveFileId = data.files[0].id;
-    lastDriveEtag = data.files[0].etag || null;
+    lastDriveVersion = data.files[0].version || null;
     return driveFileId;
   }
 
@@ -604,14 +604,14 @@ async function findOrCreateDriveFile(){
     `${JSON.stringify(state)}\r\n` +
     `--${boundary}--`;
 
-  const createRes = await driveFetch(`https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,etag`, {
+  const createRes = await driveFetch(`https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,version`, {
     method: "POST",
     headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
     body
   });
   const created = await createRes.json();
   driveFileId = created.id;
-  lastDriveEtag = created.etag || null;
+  lastDriveVersion = created.version || null;
   return driveFileId;
 }
 
@@ -633,19 +633,19 @@ async function pushToDrive(){
 
   const body = JSON.stringify(state);
 
-  const res = await driveFetch(`https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(driveFileId)}?uploadType=media&fields=etag`, {
+  const res = await driveFetch(`https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(driveFileId)}?uploadType=media&fields=version`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json; charset=UTF-8",
       // Optionnel : protection simple contre overwrite si etag connu
-      ...(lastDriveEtag ? { "If-Match": lastDriveEtag } : {})
+      ...(lastDriveVersion ? { "If-Match": lastDriveVersion } : {})
     },
     body
   });
 
   // Update etag for next optimistic write
   const json = await res.json();
-  lastDriveEtag = json.etag || lastDriveEtag;
+  lastDriveVersion = json.version || lastDriveVersion;
 }
 
 function scheduleAutoSync(){
@@ -681,7 +681,7 @@ async function connectGoogle(){
 function disconnectGoogle(){
   driveAccessToken = null;
   driveFileId = null;
-  lastDriveEtag = null;
+  lastDriveVersion = null;
   btnSyncNow.disabled = true;
   btnSignOut.disabled = true;
   setDriveUI("Drive: non connecté", "warn");
