@@ -638,7 +638,7 @@ async function pushToDrive(){
     headers: {
       "Content-Type": "application/json; charset=UTF-8",
       // Optionnel : protection simple contre overwrite si etag connu
-      ...(lastDriveVersion ? { "If-Match": lastDriveVersion } : {})
+      ...(lastDriveVersion ? { "IfVersionMatch": lastDriveVersion } : {})
     },
     body
   });
