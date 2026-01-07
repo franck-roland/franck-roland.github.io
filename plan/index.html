@@ -579,15 +579,18 @@ async function driveFetch(url, opts={}){
 async function findOrCreateDriveFile(){
   // Search file in appDataFolder
   const q = `name='${DRIVE_FILENAME.replace(/'/g,"\\'")}' and trashed=false`;
-  const res = await driveFetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name,modifiedTime,version)&q=${encodeURIComponent(q)}`);
+  const res = await driveFetch(
+    `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name,modifiedTime,version)&q=${encodeURIComponent(q)}`
+  );
   const data = await res.json();
-  if(data.files && data.files.length){
+
+  if (data.files && data.files.length){
     driveFileId = data.files[0].id;
-    lastDriveVersion = data.files[0].version || null;
+    lastDriveVersion = data.files[0].version ?? null;
     return driveFileId;
   }
 
-  // Create empty file with current state
+  // Create file with current state (in appDataFolder)
   const metadata = {
     name: DRIVE_FILENAME,
     parents: ["appDataFolder"],
@@ -600,18 +603,22 @@ async function findOrCreateDriveFile(){
     `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
     `${JSON.stringify(metadata)}\r\n` +
     `--${boundary}\r\n` +
-    `Content-Type: application/json\r\n\r\n` +
+    `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
     `${JSON.stringify(state)}\r\n` +
     `--${boundary}--`;
 
-  const createRes = await driveFetch(`https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,version`, {
-    method: "POST",
-    headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
-    body
-  });
+  const createRes = await driveFetch(
+    `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,version`,
+    {
+      method: "POST",
+      headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
+      body
+    }
+  );
+
   const created = await createRes.json();
   driveFileId = created.id;
-  lastDriveVersion = created.version || null;
+  lastDriveVersion = created.version ?? null;
   return driveFileId;
 }
 
@@ -631,21 +638,37 @@ async function pullFromDrive(){
 async function pushToDrive(){
   if(!driveFileId) await findOrCreateDriveFile();
 
-  const body = JSON.stringify(state);
+  // optimistic locking via query param
+  const qs = new URLSearchParams({ uploadType: "media" });
+  if (lastDriveVersion != null) qs.set("ifVersionMatch", String(lastDriveVersion));
 
-  const res = await driveFetch(`https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(driveFileId)}?uploadType=media&fields=version`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json; charset=UTF-8",
-      // Optionnel : protection simple contre overwrite si etag connu
-      ...(lastDriveVersion ? { "IfVersionMatch": lastDriveVersion } : {})
-    },
-    body
-  });
+  try {
+    await driveFetch(
+      `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(driveFileId)}?${qs.toString()}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json; charset=UTF-8" },
+        body: JSON.stringify(state)
+      }
+    );
+  } catch (e) {
+    // If mismatch -> someone else updated Drive, so we pull Drive and keep it as source of truth
+    const msg = String(e?.message || e);
+    if (msg.includes("412") || msg.includes("conditionNotMet") || msg.includes("ifVersionMatch")) {
+      await pullFromDrive();   // Drive wins
+      renderAll();
+      setDriveUI("Drive: conflit (Drive rechargé)", "warn");
+      return;
+    }
+    throw e;
+  }
 
-  // Update etag for next optimistic write
-  const json = await res.json();
-  lastDriveVersion = json.version || lastDriveVersion;
+  // Refresh version after successful push
+  const metaRes = await driveFetch(
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(driveFileId)}?fields=version,modifiedTime`
+  );
+  const meta = await metaRes.json();
+  lastDriveVersion = meta.version ?? lastDriveVersion;
 }
 
 function scheduleAutoSync(){
