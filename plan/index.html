@@ -1076,15 +1076,7 @@ function updateTimerUI(){
 }
 function beep(){
   try{
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if(!AudioCtx) return;
-    const ctx = new AudioCtx();
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = "sine"; o.frequency.value = 880; g.gain.value = 0.03;
-    o.connect(g); g.connect(ctx.destination);
-    o.start();
-    setTimeout(()=>{ o.stop(); ctx.close(); }, 220);
+    new Audio('assets/audio/focus_done.mp3').play()
   }catch(e){}
 }
 function vibrate(ms=160){
