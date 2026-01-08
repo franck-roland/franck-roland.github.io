@@ -579,14 +579,14 @@ async function driveFetch(url, opts={}){
 async function pullVersionFromDrive(){
   if(!driveFileId) await findOrCreateDriveFile();
 
-  // Download content (alt=media)
+  // Download version
   const res = await driveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(driveFileId)}?fields=version`);
   const content = await res.json();
   return content.version;
 }
 
 async function refreshDriveMeta() {
-  lastDriveVersion = pullVersionFromDrive();
+  lastDriveVersion = await pullVersionFromDrive();
 }
 
 async function findOrCreateDriveFile(){
@@ -653,8 +653,8 @@ async function pushToDrive({ keepForever = true } = {}) {
   const qs = new URLSearchParams({ uploadType: "media" });
   if (keepForever) qs.set("keepRevisionForever", "true");
 
-  const remoteVersion = pullVersionFromDrive();
-  
+  const remoteVersion = await pullVersionFromDrive();
+
   if (remoteVersion === lastDriveVersion) {
 
     await driveFetch(
