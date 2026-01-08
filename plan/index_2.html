@@ -419,6 +419,31 @@
             <input class="input inline w-120" id="activeLimitInput" type="number" min="3" max="7"/>
           </div>
           <div class="row" style="margin-top:10px;"><button class="btn mini" id="saveStructure">Enregistrer</button></div>
+
+          <div class="split"></div>
+
+          <div style="font-weight:700; margin-bottom:6px;">Tags</div>
+          <div class="small" style="margin-bottom:10px;">Tu peux renommer les tags et changer leur couleur.</div>
+
+          <div class="grid" style="grid-template-columns: 1fr; gap:10px;">
+            <div class="row" style="justify-content:space-between;">
+              <div class="chip" id="tagPreview_pro">Pro</div>
+              <input class="input inline" style="width:160px" id="tagName_pro" placeholder="Nom" />
+              <input class="input inline" style="width:70px; padding:6px 8px" id="tagColor_pro" type="color" />
+            </div>
+            <div class="row" style="justify-content:space-between;">
+              <div class="chip" id="tagPreview_perso">Perso</div>
+              <input class="input inline" style="width:160px" id="tagName_perso" placeholder="Nom" />
+              <input class="input inline" style="width:70px; padding:6px 8px" id="tagColor_perso" type="color" />
+            </div>
+            <div class="row" style="justify-content:space-between;">
+              <div class="chip" id="tagPreview_mix">Mix</div>
+              <input class="input inline" style="width:160px" id="tagName_mix" placeholder="Nom" />
+              <input class="input inline" style="width:70px; padding:6px 8px" id="tagColor_mix" type="color" />
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:10px;"><button class="btn mini" id="saveTags">Enregistrer tags</button></div>
         </div>
       </div>
     </section>
@@ -485,6 +510,11 @@ const DEFAULT_STATE = {
   active: [],
   parking: [],
   ritualByDay: {},
+  tags: {
+    pro:   { name: "Pro",   color: "#7dd3fc" },
+    perso: { name: "Perso", color: "#fca5a5" },
+    mix:   { name: "Mix",   color: "#86efac" },
+  },
   settings: {
     activeLimit: 5,
     sound: true,
@@ -514,6 +544,7 @@ function deepMergeDefault(parsed){
   return {
     ...structuredClone(DEFAULT_STATE),
     ...parsed,
+    tags: { ...DEFAULT_STATE.tags, ...(parsed.tags||{}) },
     settings: { ...DEFAULT_STATE.settings, ...(parsed.settings||{}) },
     timerPreset: { ...DEFAULT_STATE.timerPreset, ...(parsed.timerPreset||{}) },
     ritualByDay: parsed.ritualByDay || {},
@@ -734,6 +765,7 @@ async function onConnected(token){
     await pullFromDrive();   // Drive → local
     renderAll();
     setDriveUI("Drive: synchronized", "ok");
+    btnSignIn.disabled=true;
   }catch(e){
     console.warn(e);
     setDriveUI("Drive: loading error", "warn");
@@ -795,10 +827,20 @@ function saveState(){
   scheduleAutoSync(); // <-- Drive auto-sync (throttled)
 }
 
-function tagLabel(tag){
-  if(tag === "pro") return "Pro";
-  if(tag === "perso") return "Perso";
-  return "Mix";
+function getTagDef(tagId){
+  return (state.tags && state.tags[tagId]) || DEFAULT_STATE.tags[tagId] || { name: String(tagId||""), color: "#7dd3fc" };
+}
+function tagLabel(tagId){
+  return getTagDef(tagId).name;
+}
+function tagColor(tagId){
+  return getTagDef(tagId).color || "#7dd3fc";
+}
+function tagChipStyle(tagId){
+  const c = tagColor(tagId);
+  // Use 8-digit hex alpha if provided; fallback to rgba-like via hex + alpha suffix.
+  // This keeps the UI coherent in dark mode without needing color libs.
+  return `border-color:${c}55; background:${c}22; color: var(--text);`;
 }
 
 // Tabs
@@ -886,7 +928,7 @@ function renderList(listName, containerId, emptyId){
           <div class="item-text">
             <div class="t ${item.done ? "done" : ""}" title="${escapeHtml(item.text)}">${escapeHtml(item.text)}</div>
             <div class="meta">
-              <span class="chip">${tagLabel(item.tag)}</span>
+              <span class="chip" style="${tagChipStyle(item.tag)}">${escapeHtml(tagLabel(item.tag))}</span>
               ${isTop3 ? `<span class="chip badge">Top 3</span>` : ``}
             </div>
           </div>
@@ -954,7 +996,7 @@ function renderTop3(){
           <div class="logo" style="width:34px;height:34px;border-radius:14px;">🔥</div>
           <div class="item-text">
             <div class="t" title="${escapeHtml(it.text)}">${escapeHtml(it.text)}</div>
-            <div class="meta"><span class="chip">${tagLabel(it.tag)}</span></div>
+            <div class="meta"><span class="chip" style="${tagChipStyle(it.tag)}">${escapeHtml(tagLabel(it.tag))}</span></div>
           </div>
         </div>
         <div class="item-actions">
@@ -977,7 +1019,66 @@ document.getElementById("ritualEndDone").addEventListener("change", (e) => setRi
 function renderStructureSettings(){
   document.getElementById("activeLimitInput").value = state.settings.activeLimit;
 }
-document.getElementById("saveStructure").addEventListener("click", () => {
+
+function orderedTagIds(){
+  const base = Object.keys(DEFAULT_STATE.tags || {});
+  const cur = Object.keys(state.tags || {});
+  const extras = cur.filter(x => !base.includes(x));
+  return [...base, ...extras];
+}
+
+function renderTagSelects(){
+  const ids = ["quickTag","addInboxTag","addActiveTag","addParkingTag"];
+  const tagIds = orderedTagIds();
+  ids.forEach(selId => {
+    const sel = document.getElementById(selId);
+    if(!sel) return;
+    const current = sel.value;
+    sel.innerHTML = "";
+    tagIds.forEach(tagId => {
+      const opt = document.createElement("option");
+      opt.value = tagId;
+      opt.textContent = tagLabel(tagId);
+      sel.appendChild(opt);
+    });
+    // keep previous selection if possible
+    if(current && tagIds.includes(current)) sel.value = current;
+  });
+}
+
+function renderTagSettings(){
+  const tagIds = ["pro","perso","mix"];
+  tagIds.forEach(tagId => {
+    const def = getTagDef(tagId);
+    const nameEl = document.getElementById(`tagName_${tagId}`);
+    const colorEl = document.getElementById(`tagColor_${tagId}`);
+    const prevEl = document.getElementById(`tagPreview_${tagId}`);
+    if(nameEl) nameEl.value = def.name || "";
+    if(colorEl) colorEl.value = def.color || "#7dd3fc";
+    if(prevEl){
+      prevEl.textContent = def.name || tagId;
+      prevEl.setAttribute("style", tagChipStyle(tagId));
+    }
+  });
+}
+
+document.getElementById("saveTags")?.addEventListener("click", () => {
+  const tagIds = ["pro","perso","mix"];
+  state.tags = state.tags || {};
+  tagIds.forEach(tagId => {
+    const name = (document.getElementById(`tagName_${tagId}`)?.value || "").trim();
+    const color = (document.getElementById(`tagColor_${tagId}`)?.value || "").trim();
+    const prev = getTagDef(tagId);
+    state.tags[tagId] = {
+      name: name || prev.name || tagId,
+      color: /^#([0-9a-fA-F]{6})$/.test(color) ? color : (prev.color || "#7dd3fc")
+    };
+  });
+  saveState();
+  renderAll();
+  alert("Tags enregistrés.");
+});
+document.getElementById("saveStructure")?.addEventListener("click", () => {
   const v = Number(document.getElementById("activeLimitInput").value || 5);
   state.settings.activeLimit = Math.min(7, Math.max(3, v));
   saveState(); renderAll();
@@ -1218,6 +1319,7 @@ function renderPlan(){
 }
 
 function renderAll(){
+  renderTagSelects();
   renderCounts();
   renderList("inbox","listInbox","emptyInbox");
   renderList("active","listActive","emptyActive");
@@ -1225,6 +1327,7 @@ function renderAll(){
   renderTop3();
   renderRituals();
   renderStructureSettings();
+  renderTagSettings();
   renderTimerSettings();
   renderPlan();
   updateTimerUI();
