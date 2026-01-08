@@ -309,7 +309,7 @@
               <button class="btn" id="setFocusBtn">Focus</button>
               <button class="btn" id="setBreakBtn">Pause</button>
               <button class="btn" id="setLongBreakBtn">Pause longue</button>
-              <button class="btn" id="pauseAudioBtn">⏸️ Son</button>
+              <button class="btn" id="pauseAudioBtn" class="hidden">⏸️</button>
             </div>
           </div>
 
@@ -458,6 +458,7 @@
     <div class="footer">Données stockées localement (localStorage) + Sync Google Drive (appDataFolder).</div>
   </div>
 
+<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 <script>
 /** ===========================
  *  CONFIG GOOGLE DRIVE SYNC
@@ -1078,26 +1079,27 @@ function updateTimerUI(){
 }
 
 // Sound 
-function beep(){
-  try{
-    focusSound.pause();
-    focusSound.currentTime = 0;
-    focusSound.play();
-    pauseAudioBtn.textContent = "⏸️ Son";
-  }catch(e){}
+const $pauseAudioBtn = $("#pauseAudioBtn");
+
+function playBeep() {
+  focusSound.pause();
+  focusSound.currentTime = 0;
+  focusSound.play();
+  $pauseAudioBtn.show();
 }
 
-const pauseAudioBtn = document.getElementById("pauseAudioBtn");
+function stopBeep() {
+  focusSound.pause();
+  $pauseAudioBtn.hide();
+}
+
 
 pauseAudioBtn.addEventListener("click", () => {
   try {
     if (!focusSound.paused) {
-      focusSound.pause();
-      pauseAudioBtn.textContent = "▶️ Son";
+      stopBeep();
     } else {
-      focusSound.currentTime = 0;
-      focusSound.play();
-      pauseAudioBtn.textContent = "⏸️ Son";
+      playBeep()
     }
   } catch (e) {}
 });
@@ -1107,6 +1109,7 @@ function vibrate(ms=160){
 }
 function stopTick(){ if(tick){ clearInterval(tick); tick = null; } }
 function startTick(){
+  stopBeep();
   stopTick();
   tick = setInterval(() => {
     remainingSec -= 1;
@@ -1114,7 +1117,7 @@ function startTick(){
       remainingSec = 0;
       running = false;
       stopTick();
-      if(state.settings.sound) beep();
+      if(state.settings.sound) playBeep();
       if(state.settings.vibrate) vibrate();
 
       if(phase === "focus"){
