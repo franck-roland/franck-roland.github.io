@@ -309,6 +309,7 @@
               <button class="btn" id="setFocusBtn">Focus</button>
               <button class="btn" id="setBreakBtn">Pause</button>
               <button class="btn" id="setLongBreakBtn">Pause longue</button>
+              <button class="btn" id="pauseAudioBtn">⏸️ Son</button>
             </div>
           </div>
 
@@ -1056,6 +1057,7 @@ let running = false;
 let remainingSec = state.timerPreset.focusMin * 60;
 let blocksDone = 0;
 let tick = null;
+let focusSound = new Audio('assets/audio/focus_done.mp3');
 
 function secondsToClock(total){
   total = Math.max(0, Math.floor(total));
@@ -1074,11 +1076,32 @@ function updateTimerUI(){
   document.getElementById("timeLeft").textContent = secondsToClock(remainingSec);
   document.getElementById("startPauseBtn").textContent = running ? "Pause" : "Démarrer";
 }
+
+// Sound 
 function beep(){
   try{
-    new Audio('assets/audio/focus_done.mp3').play()
+    focusSound.pause();
+    focusSound.currentTime = 0;
+    focusSound.play();
+    pauseAudioBtn.textContent = "⏸️ Son";
   }catch(e){}
 }
+
+const pauseAudioBtn = document.getElementById("pauseAudioBtn");
+
+pauseAudioBtn.addEventListener("click", () => {
+  try {
+    if (!focusSound.paused) {
+      focusSound.pause();
+      pauseAudioBtn.textContent = "▶️ Son";
+    } else {
+      focusSound.currentTime = 0;
+      focusSound.play();
+      pauseAudioBtn.textContent = "⏸️ Son";
+    }
+  } catch (e) {}
+});
+
 function vibrate(ms=160){
   try{ if("vibrate" in navigator) navigator.vibrate(ms); }catch(e){}
 }
