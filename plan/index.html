@@ -309,7 +309,7 @@
               <button class="btn" id="setFocusBtn">Focus</button>
               <button class="btn" id="setBreakBtn">Pause</button>
               <button class="btn" id="setLongBreakBtn">Pause longue</button>
-              <button class="btn" id="pauseAudioBtn" class="hidden">⏸️</button>
+              <button class="btn" id="pauseAudioBtn">⏸️</button>
             </div>
           </div>
 
@@ -1080,6 +1080,10 @@ function updateTimerUI(){
 
 // Sound 
 const $pauseAudioBtn = $("#pauseAudioBtn");
+
+$(function() {
+  $pauseAudioBtn.hide();
+})
 
 function playBeep() {
   focusSound.pause();
