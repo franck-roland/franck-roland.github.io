@@ -545,7 +545,7 @@ let driveFileId = null;
 
 let syncThrottleTimer = null;
 let syncDirty = false;
-let lastDriveEtag = null;
+let lastDriveVersion = null;
 
 const driveDot = document.getElementById("driveDot");
 const driveStatus = document.getElementById("driveStatus");
@@ -576,15 +576,17 @@ async function driveFetch(url, opts={}){
   return res;
 }
 
+async function pullVersionFromDrive(){
+  if(!driveFileId) await findOrCreateDriveFile();
+
+  // Download content (alt=media)
+  const res = await driveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(driveFileId)}?fields=version`);
+  const content = await res.json();
+  return content.version;
+}
+
 async function refreshDriveMeta() {
-  if (!driveFileId) await findOrCreateDriveFile();
-
-  const res = await driveFetch(
-    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(driveFileId)}?fields=id,modifiedTime`
-  );
-
-  // ETag is in HTTP headers (not in JSON "fields")
-  lastDriveEtag = res.headers.get("etag");
+  lastDriveVersion = pullVersionFromDrive();
 }
 
 async function findOrCreateDriveFile(){
@@ -646,39 +648,37 @@ async function pullFromDrive(){
 
 async function pushToDrive({ keepForever = true } = {}) {
   if (!driveFileId) await findOrCreateDriveFile();
-  if (!lastDriveEtag) await refreshDriveMeta();
+  if (!lastDriveVersion) await refreshDriveMeta();
 
   const qs = new URLSearchParams({ uploadType: "media" });
   if (keepForever) qs.set("keepRevisionForever", "true");
 
-  try {
+  const remoteVersion = pullVersionFromDrive();
+  
+  if (remoteVersion === lastDriveVersion) {
+
     await driveFetch(
       `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(driveFileId)}?${qs.toString()}`,
       {
         method: "PATCH",
         headers: {
-          "Content-Type": "application/json; charset=UTF-8",
-          // optimistic concurrency control
-          ...(lastDriveEtag ? { "If-Match": lastDriveEtag } : {})
+          "Content-Type": "application/json; charset=UTF-8"
         },
         body: JSON.stringify(state)
       }
-    );
-  } catch (e) {
-    const msg = String(e?.message || e);
-    // If-Match failed => Drive changed since your last meta fetch
-    if (msg.includes("412") || msg.includes("conditionNotMet")) {
+    );  
+    
+    await refreshDriveMeta();
+
+  } else {
+
       await pullFromDrive();     // Drive wins (or do a merge strategy)
       await refreshDriveMeta();
       renderAll();
       setDriveUI("Drive: conflit (Drive rechargé)", "warn");
-      return;
-    }
-    throw e;
+
   }
 
-  // refresh etag after successful update
-  await refreshDriveMeta();
 }
 
 function scheduleAutoSync(){
@@ -695,7 +695,7 @@ function scheduleAutoSync(){
       await pushToDrive();
       setDriveUI("Drive: synchronisé", "ok");
     }catch(e){
-      // If etag mismatch (conflit) -> re-pull then re-push could be added; ici on signale.
+      // If version mismatch (conflit) -> re-pull then re-push could be added; ici on signale.
       setDriveUI("Drive: erreur sync", "warn");
       console.warn(e);
     }
