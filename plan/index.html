@@ -1160,6 +1160,7 @@ let remainingSec = state.timerPreset.focusMin * 60;
 let blocksDone = 0;
 let tick = null;
 let focusSound = new Audio('assets/audio/focus_done.mp3');
+let timerEndAt = null; // timestamp en ms
 
 function secondsToClock(total){
   total = Math.max(0, Math.floor(total));
@@ -1214,33 +1215,73 @@ function vibrate(ms=160){
 }
 function stopTick(){ if(tick){ clearInterval(tick); tick = null; } }
 function startTick(){
-  stopBeep();
   stopTick();
-  tick = setInterval(() => {
-    remainingSec -= 1;
-    if(remainingSec <= 0){
-      remainingSec = 0;
-      running = false;
-      stopTick();
-      if(state.settings.sound) playBeep();
-      if(state.settings.vibrate) vibrate();
 
-      if(phase === "focus"){
-        blocksDone += 1;
-        const isLong = (blocksDone % state.timerPreset.blocksBeforeLongBreak) === 0;
-        phase = isLong ? "long_break" : "break";
-        remainingSec = (isLong ? state.timerPreset.longBreakMin : state.timerPreset.breakMin) * 60;
-        if(state.settings.autoStartBreak){ running = true; startTick(); }
-      }else{
-        phase = "focus";
-        remainingSec = state.timerPreset.focusMin * 60;
-        if(state.settings.autoStartFocus){ running = true; startTick(); }
-      }
-    }
-    updateTimerUI();
-  }, 1000);
+  if (!timerEndAt) {
+    timerEndAt = Date.now() + remainingSec * 1000;
+  }
+
+  tick = setInterval(updateTimerFromNow, 1000);
+  updateTimerFromNow();
 }
-document.getElementById("startPauseBtn").addEventListener("click", () => { running = !running; if(running) startTick(); else stopTick(); updateTimerUI(); });
+function updateTimerFromNow(){
+  const now = Date.now();
+  remainingSec = Math.max(0, Math.floor((timerEndAt - now) / 1000));
+
+  if (remainingSec <= 0) {
+    onTimerFinished();
+    return;
+  }
+
+  updateTimerUI();
+}
+function onTimerFinished(){
+  remainingSec = 0;
+  running = false;
+  stopTick();
+  timerEndAt = null;
+
+  if(state.settings.sound) beep();
+  if(state.settings.vibrate) vibrate();
+
+  if(phase === "focus"){
+    blocksDone += 1;
+    const isLong = (blocksDone % state.timerPreset.blocksBeforeLongBreak) === 0;
+    phase = isLong ? "long_break" : "break";
+    remainingSec = (isLong ? state.timerPreset.longBreakMin : state.timerPreset.breakMin) * 60;
+    if(state.settings.autoStartBreak){
+      running = true;
+      startTick();
+    }
+  }else{
+    phase = "focus";
+    remainingSec = state.timerPreset.focusMin * 60;
+    if(state.settings.autoStartFocus){
+      running = true;
+      startTick();
+    }
+  }
+
+  updateTimerUI();
+}
+document.getElementById("startPauseBtn").addEventListener("click", () => {
+  running = !running;
+
+  if (running) {
+    startTick();
+  } else {
+    stopTick();
+    timerEndAt = null; // on fige le temps restant
+  }
+
+  updateTimerUI();
+});
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && running && timerEndAt) {
+    updateTimerFromNow(); // rattrape instantanément
+  }
+});
+
 document.getElementById("resetTimerBtn").addEventListener("click", () => {
   running = false; stopTick();
   if(phase === "focus") remainingSec = state.timerPreset.focusMin * 60;
