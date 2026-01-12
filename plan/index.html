@@ -1241,7 +1241,7 @@ function onTimerFinished(){
   stopTick();
   timerEndAt = null;
 
-  if(state.settings.sound) beep();
+  if(state.settings.sound) playBeep();
   if(state.settings.vibrate) vibrate();
 
   if(phase === "focus"){
