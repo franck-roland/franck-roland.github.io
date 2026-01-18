@@ -26,7 +26,10 @@
     <aside class="sidebar">
       <div class="sidebar-header">
         <div class="sidebar-title">Lists</div>
-        <button id="btnNewList" class="btn btn-primary">+ New</button>
+        <div class="row gap">
+          <button id="btnImport" class="btn">Import</button>
+          <button id="btnNewList" class="btn btn-primary">+ New</button>
+        </div>
       </div>
 
       <div id="listsContainer" class="lists"></div>
@@ -62,7 +65,16 @@
             <button id="btnDeleteList" class="btn btn-danger">Delete</button>
           </div>
         </div>
-
+        <div id="conflictBanner" class="conflict hidden">
+          <div>
+            <div class="conflict-title">Conflict detected</div>
+            <div id="conflictSubtitle" class="muted small">This list changed on another device while you edited.</div>
+          </div>
+          <div class="row gap">
+            <button id="btnResolveConflict" class="btn btn-primary">Resolve</button>
+            <button id="btnDismissConflict" class="btn btn-ghost">Dismiss</button>
+          </div>
+        </div>
         <div class="grid">
           <div class="panel">
             <div class="panel-header">
@@ -98,6 +110,32 @@
       </div>
     </section>
   </main>
+
+  <div id="modalOverlay" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Resolve conflict</div>
+        <button id="btnModalClose" class="iconbtn">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="muted small">
+          Choose how to resolve differences between your local changes and the remote version on Drive.
+        </div>
+
+        <div class="diffbox">
+          <div class="diff-title">Summary</div>
+          <pre id="conflictDiff" class="diff-pre"></pre>
+        </div>
+      </div>
+
+      <div class="modal-footer row gap">
+        <button id="btnConflictMerge" class="btn btn-primary">Auto-merge</button>
+        <button id="btnConflictMine" class="btn">Keep mine</button>
+        <button id="btnConflictRemote" class="btn">Keep remote</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Google Identity Services (client-side OAuth token) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>

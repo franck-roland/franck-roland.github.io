@@ -5,8 +5,9 @@ import {
   upsertCategory, deleteCategory,
   setMode, setHideChecked, markDirty
 } from "./model.js";
+import { buildConflictSummary } from "./conflictDiff.js";
 
-export function createUI({ getState, setState, persistActiveDoc, onSync, onShare }){
+export function createUI({ getState, setState, persistActiveDoc, onSync, onImport, onResolveConflict }){
   const els = {
     listsContainer: document.getElementById("listsContainer"),
     emptyState: document.getElementById("emptyState"),
@@ -28,7 +29,21 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onShare
 
     btnDeleteList: document.getElementById("btnDeleteList"),
     btnShare: document.getElementById("btnShare"),
-    driveInfo: document.getElementById("driveInfo")
+    driveInfo: document.getElementById("driveInfo"),
+
+    // conflict UX
+    conflictBanner: document.getElementById("conflictBanner"),
+    conflictSubtitle: document.getElementById("conflictSubtitle"),
+    btnResolveConflict: document.getElementById("btnResolveConflict"),
+    btnDismissConflict: document.getElementById("btnDismissConflict"),
+
+    // modal
+    modalOverlay: document.getElementById("modalOverlay"),
+    btnModalClose: document.getElementById("btnModalClose"),
+    conflictDiff: document.getElementById("conflictDiff"),
+    btnConflictMerge: document.getElementById("btnConflictMerge"),
+    btnConflictMine: document.getElementById("btnConflictMine"),
+    btnConflictRemote: document.getElementById("btnConflictRemote"),
   };
 
   const debouncedSaveTitle = debounce(async () => {
@@ -39,6 +54,13 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onShare
     await persistActiveDoc();
     render();
   }, 450);
+
+  function openModal(){
+    els.modalOverlay.classList.remove("hidden");
+  }
+  function closeModal(){
+    els.modalOverlay.classList.add("hidden");
+  }
 
   function bind(){
     els.listTitle.addEventListener("input", debouncedSaveTitle);
@@ -70,11 +92,9 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onShare
     els.btnAddCategory.addEventListener("click", async () => {
       const st = getState();
       if(!st.activeDoc) return;
-
       const parentId = st.selectedCategoryId || "c_root";
       const name = prompt("Category name?");
       if(!name) return;
-
       upsertCategory(st.activeDoc, { name: name.trim(), parentId });
       await persistActiveDoc();
       render();
@@ -103,15 +123,40 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onShare
       render();
     });
 
-    els.btnShare.addEventListener("click", async () => {
+    // Conflict banner actions
+    els.btnResolveConflict.addEventListener("click", () => {
       const st = getState();
-      if(!st.activeDoc) return;
-      const role = confirm("Allow anyone with link to EDIT this list?\nOK = writer, Cancel = reader") ? "writer" : "reader";
-      const link = await onShare(role);
-      if(link){
-        await navigator.clipboard?.writeText(link).catch(()=>{});
-        alert(`Share link copied:\n${link}`);
-      }
+      if(!st.conflict.pending || !st.conflict.remoteDoc || !st.activeDoc) return;
+      const summary = buildConflictSummary(st.activeDoc, st.conflict.remoteDoc);
+      els.conflictDiff.textContent = summary;
+      openModal();
+    });
+
+    els.btnDismissConflict.addEventListener("click", () => {
+      // Dismiss banner but keep pending conflict (user can Sync to see it again)
+      els.conflictBanner.classList.add("hidden");
+    });
+
+    // Modal close
+    els.btnModalClose.addEventListener("click", closeModal);
+    els.modalOverlay.addEventListener("click", (e) => {
+      if(e.target === els.modalOverlay) closeModal();
+    });
+
+    // Conflict resolution buttons
+    els.btnConflictMerge.addEventListener("click", async () => {
+      closeModal();
+      await onResolveConflict("merge");
+      render();
+    });
+    els.btnConflictMine.addEventListener("click", async () => {
+      closeModal();
+      await onResolveConflict("mine");
+      render();
+    });
+    els.btnConflictRemote.addEventListener("click", async () => {
+      closeModal();
+      await onResolveConflict("remote");
       render();
     });
 
@@ -126,11 +171,6 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onShare
   async function quickAddItem(){
     const st = getState();
     if(!st.activeDoc) return;
-
-    if(st.activeDoc.mode !== "edit"){
-      // In shopping mode, we still allow adding item quickly (common use-case)
-      // but you can restrict if you want.
-    }
 
     const label = els.newItemInput.value.trim();
     if(!label) return;
@@ -156,6 +196,7 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onShare
           ${doc.mode === "edit" ? "✏️ Edit" : "🛒 Shopping"} •
           ${doc.items.filter(i => !i.deletedAt).length} items
           ${doc.dirty ? " • <span style='color:var(--primary)'>unsynced</span>" : ""}
+          ${doc.sync?.driveFileId ? " • <span class='muted'>Drive</span>" : ""}
         </div>
       `;
       card.addEventListener("click", async () => {
@@ -198,14 +239,12 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onShare
         await handleCategoryAction(node.id, act);
       }));
 
-      // Click row selects category
       row.addEventListener("click", async () => {
         st.selectedCategoryId = node.id;
         setState(st);
         render();
       });
 
-      // Highlight selected
       if(st.selectedCategoryId === node.id){
         row.style.outline = "2px solid rgba(59,130,246,.45)";
       }
@@ -310,8 +349,6 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onShare
 
       const checkbox = row.querySelector("input[type=checkbox]");
       checkbox.addEventListener("change", async () => {
-        // In edit mode, you might want to prevent checks; but requirement says check in shopping.
-        // We'll allow in shopping; in edit, still allow (handy), but you can block here.
         toggleItemChecked(doc, it.id);
         await persistActiveDoc();
         render();
@@ -342,6 +379,16 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onShare
     }
   }
 
+  function renderConflict(){
+    const st = getState();
+    if(st.conflict.pending){
+      els.conflictBanner.classList.remove("hidden");
+      els.conflictSubtitle.textContent = "Remote changes detected while you edited locally. Click Resolve to choose.";
+    }else{
+      els.conflictBanner.classList.add("hidden");
+    }
+  }
+
   function renderHeader(){
     const st = getState();
     const doc = st.activeDoc;
@@ -363,6 +410,7 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onShare
 
     const signedIn = st.auth.isSignedIn;
     els.btnShare.disabled = !signedIn;
+
     els.driveInfo.textContent = signedIn
       ? (doc.sync.driveFileId ? `Drive file: ${doc.sync.driveFileId} • ${doc.dirty ? "Unsynced" : "Synced"}` : "Not yet created on Drive")
       : "Sign in to enable Drive sync & sharing";
@@ -371,6 +419,7 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onShare
   function render(){
     renderLists();
     renderHeader();
+    renderConflict();
 
     const st = getState();
     if(!st.activeDoc) return;
