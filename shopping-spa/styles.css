@@ -354,3 +354,22 @@ body{
   outline:2px solid rgba(59,130,246,.55);
   background: rgba(59,130,246,.12);
 }
+
+.node.dragging{
+  opacity: .55;
+}
+.node.drop-target{
+  outline: 2px dashed rgba(59,130,246,.65);
+  background: rgba(59,130,246,.10);
+}
+.node .handle{
+  cursor: grab;
+  user-select: none;
+  padding: 2px 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(31,41,55,.7);
+  color: var(--muted);
+}
+.node .handle:active{
+  cursor: grabbing;
+}

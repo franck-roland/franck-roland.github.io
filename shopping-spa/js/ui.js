@@ -3,7 +3,7 @@ import { escapeHtml, debounce } from "./util.js";
 import {
   addItem, deleteItem, toggleItemChecked, updateItem,
   upsertCategory, deleteCategory,
-  setMode, setHideChecked, markDirty
+  setMode, setHideChecked, markDirty, moveCategory
 } from "./model.js";
 import { buildConflictSummary } from "./conflictDiff.js";
 
@@ -52,6 +52,12 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     btnConflictRemote: document.getElementById("btnConflictRemote"),
   };
 
+  let dragCategoryId = null;
+
+  function clearDropTargets(){
+    document.querySelectorAll(".node.drop-target").forEach(el => el.classList.remove("drop-target"));
+  }
+  
   const debouncedSaveTitle = debounce(async () => {
     const st = getState();
     if(!st.activeDoc) return;
@@ -260,6 +266,12 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
       row.innerHTML = `
         <div class="left">
           <div class="indent" style="margin-left:${depth*14}px"></div>
+      
+          ${node.id !== "c_root"
+                ? `<span class="handle" title="Drag to move" draggable="true" data-handle="1">⋮⋮</span>`
+                : `<span style="width:34px; display:inline-block;"></span>`
+            }
+      
           <div class="name">${escapeHtml(node.name)}</div>
         </div>
         <div class="actions">
@@ -269,6 +281,62 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
           ${node.id !== "c_root" ? `<button class="iconbtn" data-act="del" title="Delete">🗑️</button>` : ""}
         </div>
       `;
+
+      // Drag handle bindings
+      const handle = row.querySelector("[data-handle='1']");
+      if(handle){
+        handle.addEventListener("dragstart", (e) => {
+          dragCategoryId = node.id;
+          row.classList.add("dragging");
+          clearDropTargets();
+
+          // required by some browsers
+          e.dataTransfer.setData("text/plain", node.id);
+          e.dataTransfer.effectAllowed = "move";
+        });
+
+        handle.addEventListener("dragend", () => {
+          dragCategoryId = null;
+          row.classList.remove("dragging");
+          clearDropTargets();
+        });
+      }
+
+      // Drop target bindings (drop ON a category => it becomes the new parent)
+      row.addEventListener("dragover", (e) => {
+        if(!dragCategoryId) return;
+        if(node.id === dragCategoryId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+
+        row.classList.add("drop-target");
+      });
+
+      row.addEventListener("dragleave", () => {
+        row.classList.remove("drop-target");
+      });
+
+      row.addEventListener("drop", async (e) => {
+        if(!dragCategoryId) return;
+        e.preventDefault();
+        row.classList.remove("drop-target");
+
+        const st = getState();
+        const doc = st.activeDoc;
+        if(!doc) return;
+
+        const fromId = e.dataTransfer.getData("text/plain") || dragCategoryId;
+        const toParentId = node.id; // dropping on node => move under node
+
+        try{
+          // Root is allowed as parent, but we drop on nodes; root node works too.
+          moveCategory(doc, fromId, toParentId);
+          await persistActiveDoc();
+          render();
+        }catch(err){
+          alert(err.message);
+        }
+      });
 
       const buttons = row.querySelectorAll("button[data-act]");
       buttons.forEach(btn => btn.addEventListener("click", async (e) => {

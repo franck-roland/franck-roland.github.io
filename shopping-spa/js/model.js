@@ -209,3 +209,38 @@ function mergeEntities(a, b){
   // Stable-ish order: by name/label then updatedAt (optional). Keep insertion order for now.
   return Array.from(map.values());
 }
+
+export function moveCategory(doc, categoryId, newParentId){
+  const t = now();
+
+  if(categoryId === "c_root") return; // root cannot be moved
+  if(!newParentId) newParentId = "c_root";
+  if(categoryId === newParentId) return;
+
+  const cat = doc.categories.find(c => c.id === categoryId && !c.deletedAt);
+  if(!cat) throw new Error("Category not found");
+
+  const parent = doc.categories.find(c => c.id === newParentId && !c.deletedAt);
+  if(!parent) throw new Error("Target parent category not found");
+
+  // Prevent cycles: newParentId cannot be a descendant of categoryId
+  if(isDescendant(doc, newParentId, categoryId)){
+    throw new Error("Invalid move: cannot move a category into its own descendant");
+  }
+
+  cat.parentId = newParentId;
+  cat.updatedAt = t;
+
+  markDirty(doc);
+}
+
+function isDescendant(doc, nodeId, potentialAncestorId){
+  // returns true if nodeId is inside subtree of potentialAncestorId
+  const byId = new Map(doc.categories.filter(c => !c.deletedAt).map(c => [c.id, c]));
+  let cur = byId.get(nodeId);
+  while(cur && cur.parentId){
+    if(cur.parentId === potentialAncestorId) return true;
+    cur = byId.get(cur.parentId);
+  }
+  return false;
+}
