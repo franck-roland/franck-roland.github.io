@@ -21,15 +21,28 @@
       <button id="btnSignOut" class="btn btn-ghost" disabled>Sign out</button>
     </div>
   </header>
-
+  <div id="authGate" class="auth-gate">
+    <div class="auth-card">
+      <div class="auth-title">Sign in required</div>
+      <div class="auth-subtitle">To use this app, sign in with Google to sync lists from Drive.</div>
+      <button id="btnSignInGate" class="btn btn-primary">Sign in with Google</button>
+      <div id="authGateStatus" class="muted small"></div>
+    </div>
+  </div>
   <main class="layout">
     <aside class="sidebar">
       <div class="sidebar-header">
         <div class="sidebar-title">Lists</div>
-        <div class="row gap">
-          <button id="btnImport" class="btn">Import</button>
-          <button id="btnNewList" class="btn btn-primary">+ New</button>
-        </div>
+      </div>
+
+      <div class="tabs">
+        <button id="tabMy" class="tab active">My</button>
+        <button id="tabShared" class="tab">Shared</button>
+      </div>
+
+      <div class="row gap">
+        <button id="btnNewList" class="btn btn-primary">+ New</button>
+        <button id="btnImport" class="btn">Import</button>
       </div>
 
       <div id="listsContainer" class="lists"></div>

@@ -107,4 +107,12 @@ export const DriveApi = {
     if(!res.ok) throw new Error(`Drive getShareLink failed: ${res.status}`);
     return res.json();
   }
+
+  async getFileMeta(fileId, fields="id,name,modifiedTime,parents,webViewLink,appProperties,mimeType"){
+    const res = await authedFetch(`${DRIVE_BASE}/files/${fileId}?fields=${encodeURIComponent(fields)}`, { method:"GET" });
+    if(!res.ok) throw new Error(`Drive getFileMeta failed: ${res.status}`);
+    return res.json();
+  }
+
+  
 };

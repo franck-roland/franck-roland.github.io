@@ -9,6 +9,12 @@ import { buildConflictSummary } from "./conflictDiff.js";
 
 export function createUI({ getState, setState, persistActiveDoc, onSync, onImport, onResolveConflict }){
   const els = {
+
+    tabMy: document.getElementById("tabMy"),
+    tabShared: document.getElementById("tabShared"),
+    btnNewList: document.getElementById("btnNewList"),
+    btnImport: document.getElementById("btnImport"),
+
     listsContainer: document.getElementById("listsContainer"),
     emptyState: document.getElementById("emptyState"),
     listView: document.getElementById("listView"),
@@ -166,6 +172,33 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
       setState(st);
       render();
     });
+
+    els.tabMy.addEventListener("click", () => {
+        const st = getState();
+        st.activeTab = "my";
+        setState(st);
+        render();
+      });
+
+      els.tabShared.addEventListener("click", () => {
+        const st = getState();
+        st.activeTab = "shared";
+        setState(st);
+        render();
+      });
+
+      els.btnNewList.addEventListener("click", async () => {
+        const st = getState();
+        await st.actions.createList();
+        render();
+      });
+
+      els.btnImport.addEventListener("click", async () => {
+        const st = getState();
+        await st.actions.importShared();
+        render();
+      });
+
   }
 
   async function quickAddItem(){
@@ -183,10 +216,15 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
   }
 
   function renderLists(){
+
     const st = getState();
     els.listsContainer.innerHTML = "";
 
-    const sorted = [...st.lists].sort((a,b) => (b.updatedAt||0) - (a.updatedAt||0));
+    const tab = st.activeTab || "my";
+    const filtered = st.lists.filter(d => (d.origin || "my") === tab);
+
+    const sorted = [...filtered].sort((a,b) => (b.updatedAt||0) - (a.updatedAt||0));
+
     for(const doc of sorted){
       const card = document.createElement("div");
       card.className = "list-card" + (st.activeListId === doc.listId ? " active" : "");
@@ -416,7 +454,19 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
       : "Sign in to enable Drive sync & sharing";
   }
 
+  function renderTabButtons(){
+    const st = getState();
+    const tab = st.activeTab || "my";
+    els.tabMy.classList.toggle("active", tab === "my");
+    els.tabShared.classList.toggle("active", tab === "shared");
+
+    // In My tab: show New, hide Import; in Shared tab: show Import, hide New
+    els.btnNewList.style.display = (tab === "my") ? "" : "none";
+    els.btnImport.style.display = (tab === "shared") ? "" : "none";
+  }
+
   function render(){
+    renderTabButtons();
     renderLists();
     renderHeader();
     renderConflict();

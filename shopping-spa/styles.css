@@ -313,3 +313,44 @@ body{
   font-size:13px;
   line-height:1.35;
 }
+
+.auth-gate{
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background: rgba(0,0,0,.65);
+  z-index:9999;
+  padding:18px;
+}
+.auth-gate.show{ display:flex; }
+
+.auth-card{
+  width:min(520px, 100%);
+  border:1px solid var(--border);
+  background:var(--panel);
+  border-radius:18px;
+  padding:16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.6);
+}
+.auth-title{ font-weight:800; font-size:18px; }
+.auth-subtitle{ margin-top:6px; color:var(--muted); }
+
+.tabs{
+  display:flex;
+  gap:8px;
+}
+.tab{
+  flex:1;
+  padding:10px 12px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background: rgba(255,255,255,.02);
+  color: var(--text);
+  cursor:pointer;
+}
+.tab.active{
+  outline:2px solid rgba(59,130,246,.55);
+  background: rgba(59,130,246,.12);
+}
