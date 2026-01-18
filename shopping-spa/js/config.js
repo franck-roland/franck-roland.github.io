@@ -1,7 +1,7 @@
 export const CONFIG = {
   // Create an OAuth 2.0 Client ID in Google Cloud Console (Web application).
   // Add Authorized JavaScript origins for your site (ex: http://localhost:5173).
-  GOOGLE_CLIENT_ID: "PASTE_YOUR_CLIENT_ID.apps.googleusercontent.com",
+  GOOGLE_CLIENT_ID: "821218495866-vsgjjicpsbovaaqsacrep32pgrldg8se.apps.googleusercontent.com",
 
   // Minimal scope for app-managed files:
   // - drive.file: read/write files created/opened by the app
