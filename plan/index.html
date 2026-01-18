@@ -527,6 +527,13 @@ const DEFAULT_STATE = {
     breakMin: 5,
     longBreakMin: 15,
     blocksBeforeLongBreak: 4
+  },
+  timerRuntime: {
+    running: false,
+    phase: "focus",
+    remainingSec: 25 * 60,
+    blocksDone: 0,
+    endAtMs: null
   }
 };
 
@@ -547,6 +554,7 @@ function deepMergeDefault(parsed){
     tags: { ...DEFAULT_STATE.tags, ...(parsed.tags||{}) },
     settings: { ...DEFAULT_STATE.settings, ...(parsed.settings||{}) },
     timerPreset: { ...DEFAULT_STATE.timerPreset, ...(parsed.timerPreset||{}) },
+    timerRuntime: { ...DEFAULT_STATE.timerRuntime, ...(parsed.timerRuntime || {}) },
     ritualByDay: parsed.ritualByDay || {},
     inbox: Array.isArray(parsed.inbox)? parsed.inbox : [],
     active: Array.isArray(parsed.active)? parsed.active : [],
