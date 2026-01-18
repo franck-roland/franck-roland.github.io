@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shopping Lists (Drive Sync)</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">🛒</div>
+      <div>
+        <div class="title">Shopping Lists</div>
+        <div class="subtitle">Local-first • Google Drive sync • Shareable</div>
+      </div>
+    </div>
+
+    <div class="topbar-actions">
+      <button id="btnSignIn" class="btn">Sign in</button>
+      <button id="btnSignOut" class="btn btn-ghost" disabled>Sign out</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">Lists</div>
+        <button id="btnNewList" class="btn btn-primary">+ New</button>
+      </div>
+
+      <div id="listsContainer" class="lists"></div>
+
+      <div class="sidebar-footer">
+        <button id="btnSync" class="btn" disabled>Sync now</button>
+        <div id="syncStatus" class="muted small">Not signed in</div>
+      </div>
+    </aside>
+
+    <section class="content">
+      <div id="emptyState" class="empty">
+        <h2>No list selected</h2>
+        <p>Create a list on the left, or select an existing one.</p>
+      </div>
+
+      <div id="listView" class="listview hidden">
+        <div class="listview-header">
+          <input id="listTitle" class="list-title" placeholder="List title" />
+
+          <div class="listview-actions">
+            <div class="segmented">
+              <button id="modeEdit" class="segmented-btn">Edit</button>
+              <button id="modeShop" class="segmented-btn">Shopping</button>
+            </div>
+
+            <label class="checkbox">
+              <input id="toggleHideChecked" type="checkbox" />
+              <span>Hide checked</span>
+            </label>
+
+            <button id="btnShare" class="btn" disabled>Share</button>
+            <button id="btnDeleteList" class="btn btn-danger">Delete</button>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">Categories</div>
+              <div class="panel-actions">
+                <button id="btnAddCategory" class="btn btn-small">+ Category</button>
+              </div>
+            </div>
+            <div id="categoryTree" class="tree"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">Items</div>
+              <div class="panel-actions">
+                <button id="btnAddItem" class="btn btn-small">+ Item</button>
+              </div>
+            </div>
+
+            <div class="row gap">
+              <select id="itemCategorySelect" class="select"></select>
+              <input id="newItemInput" class="input" placeholder="Add item (e.g. Milk)" />
+              <button id="btnQuickAdd" class="btn btn-primary">Add</button>
+            </div>
+
+            <div id="itemsContainer" class="items"></div>
+          </div>
+        </div>
+
+        <div class="footerbar">
+          <div class="muted small" id="driveInfo"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Google Identity Services (client-side OAuth token) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
