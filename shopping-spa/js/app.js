@@ -235,6 +235,26 @@ async function resolveConflict(strategy){
   }
 }
 
+async function deleteList(listId){
+  if(!listId) return;
+
+  // Optional: if it's a "my" list and you want to also delete from Drive,
+  // you can add Drive deletion later. For now we delete locally only.
+  await DB.deleteList(listId);
+  await loadAll();
+
+  // Pick a new active list in the current tab
+  const tab = state.activeTab || "my";
+  const next = state.lists.find(l => (l.origin || "my") === tab) || state.lists[0] || null;
+
+  state.activeListId = next?.listId || null;
+  state.activeDoc = next;
+  state.selectedCategoryId = "c_root";
+  state.conflict = { pending:false, remoteDoc:null };
+
+  setState(state);
+}
+
 function startPolling(ui){
   setInterval(async () => {
     if(!state.auth.isSignedIn) return;
@@ -272,6 +292,7 @@ async function boot(){
   state.actions = {
     selectList,
     createList,
+    deleteList,
     importShared,
     persistActiveDoc,
     syncActive,
