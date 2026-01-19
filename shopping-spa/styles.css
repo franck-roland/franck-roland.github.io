@@ -373,3 +373,108 @@ body{
 .node .handle:active{
   cursor: grabbing;
 }
+
+/* ---------- Responsive layout ---------- */
+@media (max-width: 980px){
+  .layout{
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar{
+    position: fixed;
+    top: 58px; /* topbar height */
+    left: 0;
+    bottom: 0;
+    width: min(360px, 92vw);
+    transform: translateX(-105%);
+    transition: transform .2s ease;
+    z-index: 50;
+    box-shadow: 0 20px 60px rgba(0,0,0,.55);
+  }
+  .sidebar.open{
+    transform: translateX(0);
+  }
+
+  .content{
+    padding: 12px;
+  }
+
+  .grid{
+    grid-template-columns: 1fr;
+  }
+
+  .listview-header{
+    align-items: flex-start;
+  }
+
+  .list-title{
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+/* Add a backdrop when sidebar is open on mobile */
+.sidebar-backdrop{
+  position: fixed;
+  inset: 58px 0 0 0;
+  background: rgba(0,0,0,.45);
+  z-index: 40;
+  display: none;
+}
+.sidebar-backdrop.show{ display:block; }
+
+/* Mobile topbar tweaks */
+@media (max-width: 980px){
+  .topbar-actions{
+    gap: 8px;
+  }
+}
+
+/* ---------- Category node actions overflow fix ---------- */
+.node{
+  overflow: hidden;
+}
+.node .actions{
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;          /* ✅ allow wrapping instead of overflow */
+  justify-content: flex-end;
+  max-width: 50%;
+}
+.node .left{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.node .name{
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.iconbtn{
+  flex: 0 0 auto;
+}
+
+/* ---------- Collapsible tree UI ---------- */
+.twisty{
+  width: 22px;
+  height: 22px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid rgba(31,41,55,.7);
+  border-radius: 8px;
+  background: rgba(255,255,255,.02);
+  color: var(--muted);
+  cursor: pointer;
+  user-select:none;
+}
+.twisty:hover{ color: var(--text); }
+
+.node .indent{
+  flex: 0 0 auto;
+}

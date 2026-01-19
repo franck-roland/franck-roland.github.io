@@ -52,6 +52,7 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     btnConflictRemote: document.getElementById("btnConflictRemote"),
   };
 
+  const collapsedCategoryIds = new Set(); // session-only (you can persist later)
   let dragCategoryId = null;
 
   function clearDropTargets(){
@@ -257,40 +258,92 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     if(!doc) return;
 
     const root = buildTree(doc.categories);
-    const flat = flattenTree(root);
+    if(!root){
+      els.categoryTree.innerHTML = "<div class='muted small'>No categories</div>";
+      return;
+    }
 
     els.categoryTree.innerHTML = "";
-    for(const { node, depth } of flat){
+
+    const hasChildren = (node) => (node.children || []).some(ch => !ch.deletedAt);
+
+    const walk = (node, depth) => {
+      // Skip deleted (buildTree already filters, but keep safe)
+      if(node.deletedAt) return;
+
       const row = document.createElement("div");
       row.className = "node";
-      row.innerHTML = `
-        <div class="left">
-          <div class="indent" style="margin-left:${depth*14}px"></div>
-      
-          ${node.id !== "c_root"
-                ? `<span class="handle" title="Drag to move" draggable="true" data-handle="1">⋮⋮</span>`
-                : `<span style="width:34px; display:inline-block;"></span>`
-            }
-      
-          <div class="name">${escapeHtml(node.name)}</div>
-        </div>
-        <div class="actions">
-          <button class="iconbtn" data-act="select" title="Select">🎯</button>
-          <button class="iconbtn" data-act="add" title="Add subcategory">➕</button>
-          ${node.id !== "c_root" ? `<button class="iconbtn" data-act="rename" title="Rename">✏️</button>` : ""}
-          ${node.id !== "c_root" ? `<button class="iconbtn" data-act="del" title="Delete">🗑️</button>` : ""}
-        </div>
-      `;
 
-      // Drag handle bindings
+      const childrenCount = (node.children || []).length;
+      const canCollapse = childrenCount > 0;
+
+      const isCollapsed = collapsedCategoryIds.has(node.id);
+
+      row.innerHTML = `
+      <div class="left">
+        <div class="indent" style="margin-left:${depth*14}px"></div>
+
+        ${canCollapse
+          ? `<span class="twisty" data-twisty="1" title="${isCollapsed ? "Expand" : "Collapse"}">
+               ${isCollapsed ? "▶" : "▼"}
+             </span>`
+          : `<span style="width:22px; display:inline-block;"></span>`
+      }
+
+        ${node.id !== "c_root"
+          ? `<span class="handle" title="Drag to move" draggable="true" data-handle="1">⋮⋮</span>`
+          : `<span style="width:34px; display:inline-block;"></span>`
+      }
+
+        <div class="name">${escapeHtml(node.name)}</div>
+      </div>
+
+      <div class="actions">
+        <button class="iconbtn" data-act="select" title="Select">🎯</button>
+        <button class="iconbtn" data-act="add" title="Add subcategory">➕</button>
+        ${node.id !== "c_root" ? `<button class="iconbtn" data-act="rename" title="Rename">✏️</button>` : ""}
+        ${node.id !== "c_root" ? `<button class="iconbtn" data-act="del" title="Delete">🗑️</button>` : ""}
+      </div>
+    `;
+
+      // Selected highlight
+      if(st.selectedCategoryId === node.id){
+        row.style.outline = "2px solid rgba(59,130,246,.45)";
+      }
+
+      // Twisty collapse/expand
+      const twisty = row.querySelector("[data-twisty='1']");
+      if(twisty){
+        twisty.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if(collapsedCategoryIds.has(node.id)) collapsedCategoryIds.delete(node.id);
+          else collapsedCategoryIds.add(node.id);
+          render();
+        });
+      }
+
+      // Action buttons
+      const buttons = row.querySelectorAll("button[data-act]");
+      buttons.forEach(btn => btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const act = btn.getAttribute("data-act");
+        await handleCategoryAction(node.id, act);
+      }));
+
+      // Row click selects
+      row.addEventListener("click", () => {
+        st.selectedCategoryId = node.id;
+        setState(st);
+        render();
+      });
+
+      // Drag & drop (keep your previous logic)
       const handle = row.querySelector("[data-handle='1']");
       if(handle){
         handle.addEventListener("dragstart", (e) => {
           dragCategoryId = node.id;
           row.classList.add("dragging");
           clearDropTargets();
-
-          // required by some browsers
           e.dataTransfer.setData("text/plain", node.id);
           e.dataTransfer.effectAllowed = "move";
         });
@@ -302,13 +355,11 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
         });
       }
 
-      // Drop target bindings (drop ON a category => it becomes the new parent)
       row.addEventListener("dragover", (e) => {
         if(!dragCategoryId) return;
         if(node.id === dragCategoryId) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
-
         row.classList.add("drop-target");
       });
 
@@ -321,16 +372,15 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
         e.preventDefault();
         row.classList.remove("drop-target");
 
-        const st = getState();
-        const doc = st.activeDoc;
-        if(!doc) return;
+        const st2 = getState();
+        const doc2 = st2.activeDoc;
+        if(!doc2) return;
 
         const fromId = e.dataTransfer.getData("text/plain") || dragCategoryId;
-        const toParentId = node.id; // dropping on node => move under node
+        const toParentId = node.id;
 
         try{
-          // Root is allowed as parent, but we drop on nodes; root node works too.
-          moveCategory(doc, fromId, toParentId);
+          moveCategory(doc2, fromId, toParentId);
           await persistActiveDoc();
           render();
         }catch(err){
@@ -338,25 +388,16 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
         }
       });
 
-      const buttons = row.querySelectorAll("button[data-act]");
-      buttons.forEach(btn => btn.addEventListener("click", async (e) => {
-        e.stopPropagation();
-        const act = btn.getAttribute("data-act");
-        await handleCategoryAction(node.id, act);
-      }));
-
-      row.addEventListener("click", async () => {
-        st.selectedCategoryId = node.id;
-        setState(st);
-        render();
-      });
-
-      if(st.selectedCategoryId === node.id){
-        row.style.outline = "2px solid rgba(59,130,246,.45)";
-      }
-
       els.categoryTree.appendChild(row);
-    }
+
+      // Render children unless collapsed
+      if(canCollapse && isCollapsed) return;
+      for(const ch of (node.children || [])){
+        walk(ch, depth + 1);
+      }
+    };
+
+    walk(root, 0);
   }
 
   async function handleCategoryAction(categoryId, act){
@@ -505,6 +546,11 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
       return;
     }
 
+    const footerbar = document.querySelector(".footerbar");
+    if(footerbar){
+      footerbar.classList.toggle("hidden", doc.mode === "shopping");
+    }
+    
     els.emptyState.classList.add("hidden");
     els.listView.classList.remove("hidden");
 

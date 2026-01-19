@@ -14,6 +14,10 @@ const els = {
   authGate: document.getElementById("authGate"),
   btnSignInGate: document.getElementById("btnSignInGate"),
   authGateStatus: document.getElementById("authGateStatus"),
+  
+  btnToggleSidebar: document.getElementById("btnToggleSidebar"),
+  sidebar: document.querySelector(".sidebar"),
+  sidebarBackdrop: document.getElementById("sidebarBackdrop"),
 };
 
 let state = {
@@ -351,6 +355,32 @@ async function boot(){
   }
 
   ui.render();
+  
+  function closeSidebar(){
+    els.sidebar?.classList.remove("open");
+    els.sidebarBackdrop?.classList.remove("show");
+  }
+  function toggleSidebar(){
+    const isOpen = els.sidebar?.classList.contains("open");
+    if(isOpen) closeSidebar();
+    else{
+      els.sidebar?.classList.add("open");
+      els.sidebarBackdrop?.classList.add("show");
+    }
+  }
+
+  els.btnToggleSidebar?.addEventListener("click", toggleSidebar);
+  els.sidebarBackdrop?.addEventListener("click", closeSidebar);
+
+  // Optional: close sidebar when selecting a list (mobile UX)
+  const origSelect = state.actions.selectList;
+  state.actions.selectList = async (listId) => {
+    await origSelect(listId);
+    closeSidebar();
+    refreshAuthUI();
+    ui.render();
+  };
+  
   startPolling(ui);
 }
 
