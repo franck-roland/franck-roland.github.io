@@ -7,6 +7,8 @@ import {
 } from "./model.js";
 import { buildConflictSummary } from "./conflictDiff.js";
 
+const collapsedCategoryIds = new Set(); // session-only (you can persist later)
+
 export function createUI({ getState, setState, persistActiveDoc, onSync, onImport, onResolveConflict }){
   const els = {
 
@@ -52,7 +54,7 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     btnConflictRemote: document.getElementById("btnConflictRemote"),
   };
 
-  const collapsedCategoryIds = new Set(); // session-only (you can persist later)
+  
   let dragCategoryId = null;
 
   function clearDropTargets(){
@@ -263,21 +265,39 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
       return;
     }
 
+    // Flatten once
+    const flat = flattenTree(root);
+
+    // Build quick lookup maps
+    const childrenCountById = new Map();
+    const parentById = new Map();
+
+    for(const { node } of flat){
+      parentById.set(node.id, node.parentId);
+      childrenCountById.set(node.id, (node.children || []).length);
+    }
+
+    // Helper: a node is visible if none of its ancestors are collapsed
+    const isVisible = (nodeId) => {
+      let cur = parentById.get(nodeId);
+      while(cur){
+        if(collapsedCategoryIds.has(cur)) return false;
+        cur = parentById.get(cur);
+      }
+      return true;
+    };
+
     els.categoryTree.innerHTML = "";
 
-    const hasChildren = (node) => (node.children || []).some(ch => !ch.deletedAt);
+    for(const { node, depth } of flat){
+      if(node.deletedAt) continue;
+      if(!isVisible(node.id)) continue;
 
-    const walk = (node, depth) => {
-      // Skip deleted (buildTree already filters, but keep safe)
-      if(node.deletedAt) return;
+      const canCollapse = (childrenCountById.get(node.id) || 0) > 0;
+      const isCollapsed = collapsedCategoryIds.has(node.id);
 
       const row = document.createElement("div");
       row.className = "node";
-
-      const childrenCount = (node.children || []).length;
-      const canCollapse = childrenCount > 0;
-
-      const isCollapsed = collapsedCategoryIds.has(node.id);
 
       row.innerHTML = `
       <div class="left">
@@ -285,8 +305,8 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
 
         ${canCollapse
           ? `<span class="twisty" data-twisty="1" title="${isCollapsed ? "Expand" : "Collapse"}">
-               ${isCollapsed ? "▶" : "▼"}
-             </span>`
+              ${isCollapsed ? "▶" : "▼"}
+            </span>`
           : `<span style="width:22px; display:inline-block;"></span>`
       }
 
@@ -311,7 +331,7 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
         row.style.outline = "2px solid rgba(59,130,246,.45)";
       }
 
-      // Twisty collapse/expand
+      // Collapse/expand
       const twisty = row.querySelector("[data-twisty='1']");
       if(twisty){
         twisty.addEventListener("click", (e) => {
@@ -322,22 +342,23 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
         });
       }
 
-      // Action buttons
-      const buttons = row.querySelectorAll("button[data-act]");
-      buttons.forEach(btn => btn.addEventListener("click", async (e) => {
-        e.stopPropagation();
-        const act = btn.getAttribute("data-act");
-        await handleCategoryAction(node.id, act);
-      }));
-
-      // Row click selects
+      // Row click selects category
       row.addEventListener("click", () => {
         st.selectedCategoryId = node.id;
         setState(st);
         render();
       });
 
-      // Drag & drop (keep your previous logic)
+      // Action buttons
+      row.querySelectorAll("button[data-act]").forEach(btn => {
+        btn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const act = btn.getAttribute("data-act");
+          await handleCategoryAction(node.id, act);
+        });
+      });
+
+      // Drag & drop (keeps your previous logic)
       const handle = row.querySelector("[data-handle='1']");
       if(handle){
         handle.addEventListener("dragstart", (e) => {
@@ -347,7 +368,6 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
           e.dataTransfer.setData("text/plain", node.id);
           e.dataTransfer.effectAllowed = "move";
         });
-
         handle.addEventListener("dragend", () => {
           dragCategoryId = null;
           row.classList.remove("dragging");
@@ -363,9 +383,7 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
         row.classList.add("drop-target");
       });
 
-      row.addEventListener("dragleave", () => {
-        row.classList.remove("drop-target");
-      });
+      row.addEventListener("dragleave", () => row.classList.remove("drop-target"));
 
       row.addEventListener("drop", async (e) => {
         if(!dragCategoryId) return;
@@ -389,15 +407,7 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
       });
 
       els.categoryTree.appendChild(row);
-
-      // Render children unless collapsed
-      if(canCollapse && isCollapsed) return;
-      for(const ch of (node.children || [])){
-        walk(ch, depth + 1);
-      }
-    };
-
-    walk(root, 0);
+    }
   }
 
   async function handleCategoryAction(categoryId, act){
