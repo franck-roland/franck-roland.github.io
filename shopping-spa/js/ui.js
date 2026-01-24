@@ -217,7 +217,7 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     const label = els.newItemInput.value.trim();
     if(!label) return;
 
-    const categoryId = els.itemCategorySelect.value || "c_root";
+    const categoryId = st.selectedCategoryId || "c_root";
     addItem(st.activeDoc, { label, categoryId });
     els.newItemInput.value = "";
     await persistActiveDoc();
