@@ -3,7 +3,7 @@ import { escapeHtml, debounce } from "./util.js";
 import {
   addItem, deleteItem, toggleItemChecked, updateItem,
   upsertCategory, deleteCategory,
-  setMode, setHideChecked, markDirty, moveCategory
+  setMode, setHideChecked, markDirty, moveCategory, reorderCategory
 } from "./model.js";
 import { buildConflictSummary } from "./conflictDiff.js";
 
@@ -58,7 +58,9 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
   let dragCategoryId = null;
 
   function clearDropTargets(){
-    document.querySelectorAll(".node.drop-target").forEach(el => el.classList.remove("drop-target"));
+    document.querySelectorAll(".node").forEach(el => {
+      el.classList.remove("drop-target", "drop-before", "drop-after");
+    });
   }
   
   const debouncedSaveTitle = debounce(async () => {
@@ -380,25 +382,77 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
         if(node.id === dragCategoryId) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
-        row.classList.add("drop-target");
+
+        // Determine drop position based on mouse Y position
+        const rect = row.getBoundingClientRect();
+        const y = e.clientY - rect.top;
+        const height = rect.height;
+
+        // Clear all drop target classes
+        row.classList.remove("drop-target", "drop-before", "drop-after");
+
+        // Check if source and target are siblings
+        const st2 = getState();
+        const doc2 = st2.activeDoc;
+        if(!doc2) return;
+
+        const dragCat = doc2.categories.find(c => c.id === dragCategoryId && !c.deletedAt);
+        const targetCat = doc2.categories.find(c => c.id === node.id && !c.deletedAt);
+
+        if(dragCat && targetCat && dragCat.parentId === targetCat.parentId){
+          // Siblings - show before/after indicators
+          if(y < height * 0.33){
+            row.classList.add("drop-before");
+          }else if(y > height * 0.67){
+            row.classList.add("drop-after");
+          }else{
+            row.classList.add("drop-target");
+          }
+        }else{
+          // Different levels - nest as child
+          row.classList.add("drop-target");
+        }
       });
 
-      row.addEventListener("dragleave", () => row.classList.remove("drop-target"));
+      row.addEventListener("dragleave", () => {
+        row.classList.remove("drop-target", "drop-before", "drop-after");
+      });
 
       row.addEventListener("drop", async (e) => {
         if(!dragCategoryId) return;
         e.preventDefault();
-        row.classList.remove("drop-target");
 
         const st2 = getState();
         const doc2 = st2.activeDoc;
         if(!doc2) return;
 
         const fromId = e.dataTransfer.getData("text/plain") || dragCategoryId;
-        const toParentId = node.id;
+
+        // Determine drop position
+        const rect = row.getBoundingClientRect();
+        const y = e.clientY - rect.top;
+        const height = rect.height;
+
+        const dragCat = doc2.categories.find(c => c.id === fromId && !c.deletedAt);
+        const targetCat = doc2.categories.find(c => c.id === node.id && !c.deletedAt);
+
+        row.classList.remove("drop-target", "drop-before", "drop-after");
 
         try{
-          moveCategory(doc2, fromId, toParentId);
+          if(dragCat && targetCat && dragCat.parentId === targetCat.parentId){
+            // Siblings - reorder
+            if(y < height * 0.33){
+              reorderCategory(doc2, fromId, node.id, "before");
+            }else if(y > height * 0.67){
+              reorderCategory(doc2, fromId, node.id, "after");
+            }else{
+              // Middle - nest as child
+              moveCategory(doc2, fromId, node.id);
+            }
+          }else{
+            // Different levels - nest as child
+            moveCategory(doc2, fromId, node.id);
+          }
           await persistActiveDoc();
           render();
         }catch(err){

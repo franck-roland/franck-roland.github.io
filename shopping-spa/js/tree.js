@@ -13,9 +13,9 @@ export function buildTree(categories){
     }
   }
 
-  // Ensure deterministic ordering
+  // Ensure deterministic ordering by order field
   const sortRec = (node) => {
-    node.children.sort((a,b) => (a.name||"").localeCompare(b.name||""));
+    node.children.sort((a,b) => (a.order ?? 0) - (b.order ?? 0));
     for(const ch of node.children) sortRec(ch);
   };
 

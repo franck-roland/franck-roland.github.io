@@ -362,6 +362,17 @@ body{
   outline: 2px dashed rgba(59,130,246,.65);
   background: rgba(59,130,246,.10);
 }
+
+.node.drop-before{
+  border-top: 3px solid rgba(59,130,246,.85);
+  margin-top: -2px;
+}
+
+.node.drop-after{
+  border-bottom: 3px solid rgba(59,130,246,.85);
+  margin-bottom: -2px;
+}
+
 .node .handle{
   cursor: grab;
   user-select: none;

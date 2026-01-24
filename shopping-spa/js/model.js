@@ -12,7 +12,7 @@ export function createNewListDoc(title="New list"){
     ui: { hideChecked: false },
 
     categories: [
-      { id: rootId, name: "All", parentId: null, updatedAt: now(), deletedAt: null }
+      { id: rootId, name: "All", parentId: null, order: 0, updatedAt: now(), deletedAt: null }
     ],
     items: [],
 
@@ -39,6 +39,14 @@ export function normalizeDoc(doc){
   doc.sync ??= { driveFileId:null, driveFolderId:null, driveModifiedTime:null, lastPulledAt:null, lastPushedAt:null };
   doc.dirty ??= false;
   doc.updatedAt ??= now();
+
+  // Ensure all categories have an order field
+  doc.categories.forEach(c => {
+    if(c.order === undefined || c.order === null){
+      c.order = 0;
+    }
+  });
+
   return doc;
 }
 
@@ -46,7 +54,10 @@ export function upsertCategory(doc, { id=null, name, parentId }){
   const t = now();
   if(!id){
     id = uuid();
-    doc.categories.push({ id, name, parentId, updatedAt:t, deletedAt:null });
+    // Find max order for siblings at this level
+    const siblings = doc.categories.filter(c => !c.deletedAt && c.parentId === parentId);
+    const maxOrder = siblings.length > 0 ? Math.max(...siblings.map(c => c.order ?? 0)) : -1;
+    doc.categories.push({ id, name, parentId, order: maxOrder + 1, updatedAt:t, deletedAt:null });
   }else{
     const c = doc.categories.find(x => x.id === id);
     if(!c) throw new Error("Category not found");
@@ -230,6 +241,50 @@ export function moveCategory(doc, categoryId, newParentId){
 
   cat.parentId = newParentId;
   cat.updatedAt = t;
+
+  // Assign order at end of new parent's children
+  const siblings = doc.categories.filter(c => !c.deletedAt && c.parentId === newParentId && c.id !== categoryId);
+  const maxOrder = siblings.length > 0 ? Math.max(...siblings.map(c => c.order ?? 0)) : -1;
+  cat.order = maxOrder + 1;
+
+  markDirty(doc);
+}
+
+export function reorderCategory(doc, categoryId, targetId, position){
+  // Reorder categoryId to be before or after targetId (must be siblings)
+  const t = now();
+
+  if(categoryId === "c_root" || targetId === "c_root") return;
+  if(categoryId === targetId) return;
+
+  const cat = doc.categories.find(c => c.id === categoryId && !c.deletedAt);
+  const target = doc.categories.find(c => c.id === targetId && !c.deletedAt);
+
+  if(!cat || !target) throw new Error("Category not found");
+  if(cat.parentId !== target.parentId) throw new Error("Categories must be siblings");
+
+  // Get all siblings at this level
+  const parentId = cat.parentId;
+  const siblings = doc.categories
+    .filter(c => !c.deletedAt && c.parentId === parentId)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  // Remove cat from its current position
+  const filtered = siblings.filter(s => s.id !== categoryId);
+
+  // Find target index
+  const targetIndex = filtered.findIndex(s => s.id === targetId);
+  if(targetIndex === -1) throw new Error("Target not found");
+
+  // Insert cat before or after target
+  const insertIndex = position === "before" ? targetIndex : targetIndex + 1;
+  filtered.splice(insertIndex, 0, cat);
+
+  // Reassign order values
+  filtered.forEach((c, idx) => {
+    c.order = idx;
+    c.updatedAt = t;
+  });
 
   markDirty(doc);
 }
