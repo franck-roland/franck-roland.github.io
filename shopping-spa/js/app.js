@@ -372,6 +372,24 @@ async function boot(){
   els.btnToggleSidebar?.addEventListener("click", toggleSidebar);
   els.sidebarBackdrop?.addEventListener("click", closeSidebar);
 
+  // Close sidebar on ESC key
+  document.addEventListener("keydown", (e) => {
+    if(e.key === "Escape"){
+      closeSidebar();
+    }
+  });
+
+  // Close sidebar when resizing to desktop view
+  let resizeTimeout;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      if(window.innerWidth > 980){
+        closeSidebar();
+      }
+    }, 100);
+  });
+
   // Optional: close sidebar when selecting a list (mobile UX)
   const origSelect = state.actions.selectList;
   state.actions.selectList = async (listId) => {
