@@ -7,9 +7,31 @@ import {
 } from "./model.js";
 import { buildConflictSummary } from "./conflictDiff.js";
 import { isFocusWanted, toggleFocus, applyFocus } from "./focus.js";
-import { showAlert, showConfirm, showPrompt } from "./modal.js";
+import { showAlert, showChoice, showConfirm, showPrompt } from "./modal.js";
 
 const collapsedCategoryIds = new Set(); // session-only (you can persist later)
+
+/** The conflict dialog's body: an explanation plus the diff summary. */
+function buildConflictBody(summary){
+  const body = document.createElement("div");
+
+  const intro = document.createElement("div");
+  intro.className = "muted small";
+  intro.textContent = "Choose how to resolve differences between your local changes and the remote version on Drive.";
+
+  const box = document.createElement("div");
+  box.className = "diffbox";
+  const title = document.createElement("div");
+  title.className = "diff-title";
+  title.textContent = "Summary";
+  const pre = document.createElement("pre");
+  pre.className = "diff-pre";
+  pre.textContent = summary;
+  box.append(title, pre);
+
+  body.append(intro, box);
+  return body;
+}
 
 export function createUI({ getState, setState, persistActiveDoc, onSync, onImport, onResolveConflict }){
   const els = {
@@ -47,14 +69,6 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     conflictSubtitle: document.getElementById("conflictSubtitle"),
     btnResolveConflict: document.getElementById("btnResolveConflict"),
     btnDismissConflict: document.getElementById("btnDismissConflict"),
-
-    // modal
-    modalOverlay: document.getElementById("modalOverlay"),
-    btnModalClose: document.getElementById("btnModalClose"),
-    conflictDiff: document.getElementById("conflictDiff"),
-    btnConflictMerge: document.getElementById("btnConflictMerge"),
-    btnConflictMine: document.getElementById("btnConflictMine"),
-    btnConflictRemote: document.getElementById("btnConflictRemote"),
   };
 
   // Dialogs are async, unlike the native prompt/confirm they replaced. The 10s
@@ -84,13 +98,6 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     await persistActiveDoc();
     render();
   }, 450);
-
-  function openModal(){
-    els.modalOverlay.classList.remove("hidden");
-  }
-  function closeModal(){
-    els.modalOverlay.classList.add("hidden");
-  }
 
   function bind(){
     els.listTitle.addEventListener("input", debouncedSaveTitle);
@@ -172,40 +179,30 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     });
 
     // Conflict banner actions
-    els.btnResolveConflict.addEventListener("click", () => {
+    els.btnResolveConflict.addEventListener("click", async () => {
       const st = getState();
       if(!st.conflict.pending || !st.conflict.remoteDoc || !st.activeDoc) return;
-      const summary = buildConflictSummary(st.activeDoc, st.conflict.remoteDoc);
-      els.conflictDiff.textContent = summary;
-      openModal();
+
+      const strategy = await showChoice({
+        title: "Resolve conflict",
+        body: buildConflictBody(buildConflictSummary(st.activeDoc, st.conflict.remoteDoc)),
+        // .modal-footer is right-aligned, so the last button sits rightmost:
+        // Auto-merge stays the primary action closest to the thumb.
+        buttons: [
+          { label: "Keep remote", value: "remote" },
+          { label: "Keep mine", value: "mine" },
+          { label: "Auto-merge", value: "merge", kind: "primary" }
+        ]
+      });
+      if(!strategy) return;
+
+      await onResolveConflict(strategy);
+      render();
     });
 
     els.btnDismissConflict.addEventListener("click", () => {
       // Dismiss banner but keep pending conflict (user can Sync to see it again)
       els.conflictBanner.classList.add("hidden");
-    });
-
-    // Modal close
-    els.btnModalClose.addEventListener("click", closeModal);
-    els.modalOverlay.addEventListener("click", (e) => {
-      if(e.target === els.modalOverlay) closeModal();
-    });
-
-    // Conflict resolution buttons
-    els.btnConflictMerge.addEventListener("click", async () => {
-      closeModal();
-      await onResolveConflict("merge");
-      render();
-    });
-    els.btnConflictMine.addEventListener("click", async () => {
-      closeModal();
-      await onResolveConflict("mine");
-      render();
-    });
-    els.btnConflictRemote.addEventListener("click", async () => {
-      closeModal();
-      await onResolveConflict("remote");
-      render();
     });
 
     els.itemCategorySelect.addEventListener("change", async () => {
