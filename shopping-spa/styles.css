@@ -615,3 +615,20 @@ body.focus-mode .btn-focus{
   .btn-focus .focus-label{ display:none; }
   body.focus-mode .btn-focus .focus-label{ display:inline; }
 }
+
+/* Modal layer (js/modal.js) */
+.modal{
+  display:flex;
+  flex-direction:column;
+  max-height:85vh;
+}
+.modal-sm{ width:min(440px, 100%); }
+.modal-body{ overflow-y:auto; }
+.modal-message{ line-height:1.45; white-space:pre-wrap; }
+.modal-footer .btn{ flex:0 0 auto; }
+body.modal-open{ overflow:hidden; }
+
+@media (max-width: 520px){
+  .modal-footer{ flex-direction:column-reverse; align-items:stretch; }
+  .modal-footer .btn{ width:100%; }
+}
