@@ -185,6 +185,79 @@ function exportActiveList(){
   setSyncStatus("Exported ✅");
 }
 
+/** The share dialog's body: the link, plus a one-click copy. */
+function buildShareBody(link){
+  const wrap = document.createElement("div");
+
+  const intro = document.createElement("div");
+  intro.className = "muted small";
+  intro.textContent = "Anyone with this link can open and edit the list.";
+
+  const input = document.createElement("input");
+  input.className = "input";
+  input.type = "text";
+  input.readOnly = true;
+  input.value = link;
+  // Selecting on focus makes a manual copy one keystroke, when the clipboard
+  // API is unavailable (non-secure origin) or the user denies it.
+  input.addEventListener("focus", () => input.select());
+
+  wrap.append(intro, input);
+  return { wrap, input };
+}
+
+async function shareActiveList(){
+  if(!state.activeDoc) return;
+  if(!state.auth.isSignedIn) return;
+
+  setSyncStatus("Creating share link…");
+  try{
+    // share() needs a Drive file to grant permission on. A list that has never
+    // synced has no driveFileId yet, so create it here rather than failing.
+    if((state.activeDoc.origin || "my") === "my" && !state.activeDoc.sync?.driveFileId){
+      const folderId = state.shoppingFolderId || await DriveSync.ensureShoppingFolder();
+      state.shoppingFolderId = folderId;
+      state.activeDoc = await DriveSync.ensureMyListFile(state.activeDoc, folderId);
+      await persistActiveDoc();
+    }
+
+    const link = await DriveSync.share(state.activeDoc);
+    if(!link) throw new Error("Drive returned no shareable link");
+
+    setSyncStatus("Share link ready ✅");
+
+    const { wrap, input } = buildShareBody(link);
+    const res = await showChoice({
+      title: "Share this list",
+      body: wrap,
+      buttons: [
+        { label: "Close", value: null, kind: "ghost" },
+        { label: "Copy link", value: "copy", kind: "primary" }
+      ]
+    });
+
+    if(res === "copy"){
+      try{
+        await navigator.clipboard.writeText(link);
+        setSyncStatus("Link copied ✅");
+      }catch(_e){
+        // Clipboard denied or unavailable: fall back to showing it again.
+        input.focus();
+        await showAlert("Could not copy automatically. The link is:\n\n" + link,
+          { title: "Copy the link" });
+      }
+    }
+  }catch(e){
+    console.error(e);
+    setSyncStatus("Share failed: " + e.message);
+    await showAlert(
+      (state.activeDoc?.origin === "shared")
+        ? "This list lives in someone else's Drive, so you cannot change who it is shared with."
+        : "Could not create a share link: " + e.message,
+      { title: "Share failed" });
+  }
+}
+
 /** The import dialog's body: what is in the file, and the reset-checked option. */
 function buildImportBody(imported, target){
   const wrap = document.createElement("div");
@@ -442,6 +515,7 @@ async function boot(){
     createList,
     deleteList,
     importShared,
+    shareActiveList,
     persistActiveDoc,
     syncActive,
     resolveConflict
@@ -454,6 +528,7 @@ async function boot(){
     onSync: syncActive,
     onImport: importShared,
     onExport: exportActiveList,
+    onShare: shareActiveList,
     onImportFile: () => els.importFileInput?.click(),
     onResolveConflict: resolveConflict
   });
