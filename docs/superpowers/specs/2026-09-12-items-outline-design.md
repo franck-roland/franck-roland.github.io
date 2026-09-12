@@ -3,6 +3,9 @@
 Date: 2026-09-12
 Status: approved; not yet implemented
 Scope: `shopping-spa`
+Preview: [`2026-09-12-items-outline-preview.html`](./2026-09-12-items-outline-preview.html)
+&mdash; a clickable prototype with a Today/Proposed switch across both panels.
+Also published at <https://claude.ai/code/artifact/e7149234-a011-457b-a895-aede4b6c6411>.
 
 ## Origin
 

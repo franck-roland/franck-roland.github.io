@@ -1,0 +1,1414 @@
+<!doctype html>
+<!--
+  Behaviour prototype for docs/superpowers/specs/2026-09-12-items-outline-design.md
+
+  Demo data only — this is not part of the site and is never served. Open it
+  directly in a browser (file:// works; there are no external requests).
+
+  buildItemsOutline() below is the real implementation destined for js/tree.js;
+  everything around it is throwaway scaffolding for visual review.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Items Outline Preview</title>
+<style>
+  /* ---- Tokens lifted verbatim from shopping-spa/styles.css ---------------- */
+  :root{
+    --bg:#0b0d10;
+    --panel:#11151b;
+    --panel2:#0f1318;
+    --text:#e8edf3;
+    --muted:#94a3b8;
+    --border:#1f2937;
+    --primary:#3b82f6;
+    --danger:#ef4444;
+    --ok:#22c55e;
+
+    /* harness-only: deliberately outside the app palette, so prototype chrome
+       never reads as part of the app being reviewed */
+    --note:#f59e0b;
+    --harness:#0a0c0f;
+    --harness-line:#161c26;
+
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    font-size:14px;
+    line-height:1.5;
+  }
+
+  .wrap{
+    max-width:1180px;
+    margin:0 auto;
+    padding-inline:16px;
+    padding-block:20px 56px;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+  }
+
+  /* ---- Harness header ---------------------------------------------------- */
+  .masthead{ display:flex; flex-direction:column; gap:6px; }
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.09em;
+    text-transform:uppercase;
+    color:var(--note);
+  }
+  h1{
+    margin:0;
+    font-size:clamp(21px,3vw,27px);
+    font-weight:750;
+    letter-spacing:-.015em;
+    text-wrap:balance;
+  }
+  .lede{ margin:0; color:var(--muted); max-width:65ch; }
+  .lede code{ font-family:var(--mono); font-size:.92em; color:var(--text); }
+
+  /* ---- Control strip ----------------------------------------------------- */
+  .controls{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:16px;
+    padding:12px 14px;
+    border:1px solid var(--harness-line);
+    border-radius:14px;
+    background:var(--harness);
+  }
+  .ctl{ display:flex; align-items:center; gap:8px; }
+  .ctl-label{
+    font-family:var(--mono);
+    font-size:10px;
+    letter-spacing:.09em;
+    text-transform:uppercase;
+    color:var(--muted);
+  }
+  .spacer{ flex:1 1 auto; }
+
+  .segmented{
+    display:flex;
+    border:1px solid var(--border);
+    border-radius:12px;
+    overflow:hidden;
+  }
+  .segmented-btn{
+    border:0;
+    background:transparent;
+    color:var(--text);
+    font:inherit;
+    padding:7px 13px;
+    cursor:pointer;
+    transition:background .15s ease;
+  }
+  .segmented-btn:hover:not(.active){ background:rgba(255,255,255,.04); }
+  .segmented-btn.active{ background:rgba(255,255,255,.07); }
+  .segmented.flag .segmented-btn.active{
+    background:rgba(245,158,11,.16);
+    color:#fde3a7;
+    box-shadow:inset 0 -2px 0 var(--note);
+  }
+
+  .checkbox{ display:flex; align-items:center; gap:8px; color:var(--muted); user-select:none; cursor:pointer; }
+  .checkbox input{ accent-color:var(--primary); width:15px; height:15px; }
+
+  .scope-note{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--muted);
+  }
+  .scope-note b{ color:var(--text); font-weight:600; }
+
+  /* ---- App replica ------------------------------------------------------- */
+  .grid{
+    display:grid;
+    grid-template-columns:320px 1fr;
+    gap:14px;
+  }
+  .panel{
+    border:1px solid var(--border);
+    background:var(--panel);
+    border-radius:16px;
+    padding:12px;
+    min-height:440px;
+  }
+  .panel-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:10px;
+  }
+  .panel-title{ font-weight:700; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .panel-title .scope{ color:var(--muted); font-weight:600; }
+  .count-chip{
+    flex:0 0 auto;
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--muted);
+    border:1px solid var(--border);
+    border-radius:999px;
+    padding:3px 9px;
+    font-variant-numeric:tabular-nums;
+  }
+
+  .btn{
+    border:1px solid var(--border);
+    background:rgba(255,255,255,.02);
+    color:var(--text);
+    font:inherit;
+    padding:9px 12px;
+    border-radius:12px;
+    cursor:pointer;
+    transition:background .15s ease, border-color .15s ease;
+  }
+  .btn:hover{ background:rgba(255,255,255,.06); }
+  .btn-primary{ background:rgba(59,130,246,.2); border-color:rgba(59,130,246,.45); }
+  .btn-ghost{ background:transparent; }
+  .btn-danger{ background:rgba(239,68,68,.12); border-color:rgba(239,68,68,.45); }
+  .btn-small{ padding:6px 10px; border-radius:10px; font-size:13px; }
+
+  .input{
+    width:100%;
+    padding:9px 12px;
+    border-radius:12px;
+    border:1px solid var(--border);
+    background:var(--panel2);
+    color:var(--text);
+    font:inherit;
+  }
+  .input::placeholder{ color:#64748b; }
+
+  .addrow{ display:flex; align-items:center; gap:10px; }
+
+  /* ---- Category tree ----------------------------------------------------- */
+  .tree{ display:flex; flex-direction:column; gap:6px; }
+  .node{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    padding:8px;
+    border-radius:12px;
+    border:1px solid rgba(31,41,55,.7);
+    background:rgba(255,255,255,.02);
+    cursor:pointer;
+    transition:background .15s ease, border-color .15s ease;
+  }
+  .node:hover{ background:rgba(255,255,255,.04); border-color:rgba(59,130,246,.3); }
+  .node.selected{ outline:2px solid rgba(59,130,246,.45); background:rgba(59,130,246,.06); }
+  .node .left{ display:flex; align-items:center; gap:8px; min-width:0; flex:1 1 auto; }
+  .node .name{ font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .node .actions{ display:flex; align-items:center; gap:6px; flex:0 0 auto; }
+
+  .iconbtn{
+    border:1px solid var(--border);
+    background:transparent;
+    color:var(--muted);
+    border-radius:10px;
+    padding:5px 8px;
+    font:inherit;
+    line-height:1.1;
+    cursor:pointer;
+    flex:0 0 auto;
+    transition:color .15s ease, background .15s ease, border-color .15s ease;
+  }
+  .iconbtn:hover{ color:var(--text); background:rgba(255,255,255,.05); border-color:rgba(59,130,246,.3); }
+
+  .twisty{
+    width:22px; height:22px;
+    display:inline-flex; align-items:center; justify-content:center;
+    border:1px solid rgba(31,41,55,.7);
+    border-radius:8px;
+    background:rgba(255,255,255,.02);
+    color:var(--muted);
+    font-size:10px;
+    cursor:pointer;
+    flex:0 0 auto;
+  }
+  .twisty:hover{ color:var(--text); background:rgba(255,255,255,.05); }
+  .twisty.ghost{ border-color:transparent; background:none; cursor:default; }
+
+  .handle{
+    cursor:grab;
+    user-select:none;
+    padding:2px 6px;
+    border-radius:8px;
+    border:1px solid rgba(31,41,55,.7);
+    color:var(--muted);
+    font-size:12px;
+    flex:0 0 auto;
+  }
+
+  /* The overflow menu is revealed on hover where hovering exists, and is
+     always present on touch. */
+  .node .menubtn{ opacity:1; }
+  @media (hover:hover){
+    .node .menubtn{ opacity:0; transition:opacity .12s ease; }
+    .node:hover .menubtn,
+    .node:focus-within .menubtn,
+    .node .menubtn[aria-expanded="true"]{ opacity:1; }
+  }
+
+  /* ---- LEGACY tree: the rules that cause the truncation ------------------ */
+  .app.legacy .node{ overflow:hidden; }
+  .app.legacy .node .actions{ flex-wrap:wrap; justify-content:flex-end; max-width:50%; }
+
+  /* ---- Items: legacy flat list ------------------------------------------ */
+  .items{ margin-top:10px; display:flex; flex-direction:column; gap:8px; }
+  .item{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:9px 10px;
+    background:rgba(255,255,255,.02);
+  }
+  .item:hover{ background:rgba(255,255,255,.04); border-color:rgba(59,130,246,.3); }
+  .item-left{ display:flex; align-items:center; gap:10px; min-width:0; }
+  .item input[type=checkbox]{ accent-color:var(--primary); width:16px; height:16px; flex:0 0 auto; }
+  .item .label{ font-weight:600; }
+  .item .cat{ font-size:12px; color:var(--muted); margin-top:2px; }
+  .item.checked{ opacity:.6; }
+  .item.checked .label{ text-decoration:line-through; }
+
+  /* ---- Items: grouped outline ------------------------------------------- */
+  .outline{ margin-top:10px; display:flex; flex-direction:column; gap:4px; }
+
+  .sec{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:7px 8px;
+    border-radius:10px;
+    cursor:pointer;
+    border:1px solid transparent;
+    transition:background .15s ease;
+  }
+  .sec:hover{ background:rgba(255,255,255,.035); }
+  .sec .sec-name{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    font-weight:600;
+    color:var(--muted);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .sec.depth0 .sec-name{ color:var(--text); font-size:12px; }
+  .sec .rule{ flex:1 1 auto; height:1px; background:var(--border); min-width:12px; }
+  .sec .num{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--muted);
+    font-variant-numeric:tabular-nums;
+    flex:0 0 auto;
+  }
+  .sec.empty .sec-name,
+  .sec.empty .num{ color:#5b6a7d; }
+  .sec.orphan .sec-name{ color:var(--note); }
+  .sec.orphan .rule{ background:rgba(245,158,11,.3); }
+
+  .outline .item{ border-radius:12px; }
+
+  /* one indent step = 16px, capped at depth 4 */
+  .d0{ margin-left:0; }
+  .d1{ margin-left:16px; }
+  .d2{ margin-left:32px; }
+  .d3{ margin-left:48px; }
+  .d4{ margin-left:64px; }
+
+  .inline-add{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:2px 0;
+  }
+  .inline-add .input{
+    border-color:rgba(59,130,246,.5);
+    background:rgba(59,130,246,.06);
+  }
+  .inline-add .hint{
+    font-family:var(--mono);
+    font-size:10px;
+    color:var(--muted);
+    white-space:nowrap;
+  }
+
+  .empty-state{
+    margin-top:14px;
+    padding:16px;
+    border:1px dashed var(--border);
+    border-radius:14px;
+    color:var(--muted);
+    text-align:center;
+  }
+
+  /* ---- Overflow menu popover -------------------------------------------- */
+  .menu{
+    position:fixed;
+    z-index:900;
+    min-width:186px;
+    padding:6px;
+    border:1px solid var(--border);
+    border-radius:14px;
+    background:var(--panel);
+    box-shadow:0 18px 46px rgba(0,0,0,.6);
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+  .menu button{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    width:100%;
+    text-align:left;
+    border:0;
+    background:transparent;
+    color:var(--text);
+    font:inherit;
+    padding:8px 10px;
+    border-radius:9px;
+    cursor:pointer;
+  }
+  .menu button:hover{ background:rgba(255,255,255,.06); }
+  .menu button.danger{ color:#fca5a5; }
+  .menu button.danger:hover{ background:rgba(239,68,68,.14); }
+
+  /* ---- Modal (matches js/modal.js markup) -------------------------------- */
+  .modal-overlay{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,.55);
+    display:flex; align-items:center; justify-content:center;
+    padding:18px; z-index:1000;
+  }
+  .modal{
+    width:min(420px,100%);
+    border:1px solid var(--border);
+    background:var(--panel);
+    border-radius:18px;
+    box-shadow:0 20px 60px rgba(0,0,0,.55);
+    overflow:hidden;
+  }
+  .modal-header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px; border-bottom:1px solid var(--border);
+  }
+  .modal-title{ font-weight:800; }
+  .modal-body{ padding:12px; display:flex; flex-direction:column; gap:10px; }
+  .modal-message{ color:var(--muted); }
+  .modal-footer{
+    padding:12px; border-top:1px solid var(--border);
+    display:flex; gap:10px; justify-content:flex-end;
+  }
+
+  /* ---- Review checklist -------------------------------------------------- */
+  .checks{
+    border:1px solid var(--harness-line);
+    border-radius:14px;
+    background:var(--harness);
+    padding:14px;
+  }
+  .checks h2{
+    margin:0 0 4px;
+    font-size:15px;
+    font-weight:700;
+  }
+  .checks .sub{ margin:0 0 14px; color:var(--muted); font-size:13px; }
+  .checks ol{
+    margin:0;
+    padding:0;
+    list-style:none;
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(268px,1fr));
+    gap:10px;
+  }
+  .check{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    padding:11px 12px;
+    border:1px solid var(--harness-line);
+    border-radius:12px;
+    background:rgba(255,255,255,.015);
+  }
+  .check .t{ font-weight:650; font-size:13px; }
+  .check .d{ color:var(--muted); font-size:12.5px; }
+  .check .d code{ font-family:var(--mono); font-size:.92em; color:#cbd5e1; }
+  .check button{
+    align-self:flex-start;
+    margin-top:2px;
+    font-family:var(--mono);
+    font-size:10px;
+    letter-spacing:.07em;
+    text-transform:uppercase;
+    color:var(--note);
+    background:rgba(245,158,11,.1);
+    border:1px solid rgba(245,158,11,.32);
+    border-radius:8px;
+    padding:5px 9px;
+    cursor:pointer;
+  }
+  .check button:hover{ background:rgba(245,158,11,.18); }
+
+  .flash{ animation:flash 1.5s ease-out 1; }
+  @keyframes flash{
+    0%,22%{ background:rgba(245,158,11,.26); }
+    100%{ background:transparent; }
+  }
+
+  .foot{
+    color:var(--muted);
+    font-size:12.5px;
+    border-top:1px solid var(--harness-line);
+    padding-top:14px;
+    max-width:72ch;
+  }
+  .foot code{ font-family:var(--mono); color:#cbd5e1; }
+
+  :focus-visible{ outline:2px solid var(--primary); outline-offset:2px; }
+
+  @media (prefers-reduced-motion:reduce){
+    *{ animation-duration:.001ms !important; transition-duration:.001ms !important; }
+  }
+
+  @media (max-width:900px){
+    .grid{ grid-template-columns:1fr; }
+    .panel{ min-height:0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="masthead">
+    <div class="eyebrow">Prototype · demo data · not the live app</div>
+    <h1>Items Outline Preview</h1>
+    <p class="lede">
+      Behaviour review for <code>2026-09-12-items-outline-design.md</code>. The
+      <b>Build</b> switch below flips the whole surface between what ships today and
+      what the spec proposes &mdash; both the items panel and the category tree.
+      Everything here is interactive.
+    </p>
+  </header>
+
+  <div class="controls">
+    <div class="ctl">
+      <span class="ctl-label">Build</span>
+      <div class="segmented flag" id="buildSeg">
+        <button class="segmented-btn" type="button" data-build="legacy" id="bLegacy">Today</button>
+        <button class="segmented-btn active" type="button" data-build="next" id="bNext">Proposed</button>
+      </div>
+    </div>
+
+    <div class="ctl">
+      <span class="ctl-label">Mode</span>
+      <div class="segmented" id="modeSeg">
+        <button class="segmented-btn" type="button" data-mode="edit" id="mEdit">Edit</button>
+        <button class="segmented-btn active" type="button" data-mode="shopping" id="mShop">Shopping</button>
+      </div>
+    </div>
+
+    <label class="checkbox" for="hideChecked">
+      <input type="checkbox" id="hideChecked" />
+      <span>Hide checked</span>
+    </label>
+
+    <div class="spacer"></div>
+    <div class="scope-note">scope&nbsp;=&nbsp;<b id="scopeName">Alimentation</b></div>
+  </div>
+
+  <main class="app" id="app">
+    <div class="grid">
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Categories</div>
+          <button class="btn btn-small" type="button" id="btnAddCat">+ Category</button>
+        </div>
+        <div class="tree" id="tree"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title" id="itemsTitle">Items</div>
+          <span class="count-chip" id="itemsCount">0</span>
+        </div>
+        <div class="addrow">
+          <input class="input" id="topInput" placeholder="Add item (e.g. Milk)" />
+          <button class="btn btn-primary" type="button" id="btnTopAdd">Add</button>
+        </div>
+        <div id="itemsHost"></div>
+      </section>
+    </div>
+  </main>
+
+  <section class="checks">
+    <h2>What to check</h2>
+    <p class="sub">Each one sets the preview up for you. The two marked &ldquo;spec change&rdquo; differ from what I described in chat.</p>
+    <ol id="checkList"></ol>
+  </section>
+
+  <p class="foot">
+    Demo data mirrors your screenshot, plus two deliberate edge cases:
+    <b>Surgel&eacute;s</b> and <b>Soins du visage</b> are empty, and <code>Piles AA</code>
+    is an orphan whose category no longer exists &mdash; the silent-data-loss case the
+    spec mitigates. The outline is produced by a real implementation of
+    <code>buildItemsOutline()</code>; the same function moves into
+    <code>js/tree.js</code> unchanged.
+  </p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ====================================================================== *
+   * Demo document — same shape as a real shopping-spa doc
+   * ====================================================================== */
+  var T = 1000, uid = 0;
+  function cat(id, name, parentId, order){
+    return { id:id, name:name, parentId:parentId, order:order, updatedAt:T, deletedAt:null };
+  }
+  function item(label, categoryId, checked){
+    return { id:"i_"+(++uid), label:label, categoryId:categoryId, checked:!!checked, updatedAt:T, deletedAt:null };
+  }
+
+  var doc = {
+    mode:"shopping",
+    ui:{ hideChecked:false },
+    categories:[
+      cat("c_root","All",null,0),
+      cat("c_ent","Produits d'entretien ménager","c_root",0),
+      cat("c_ali","Alimentation","c_root",1),
+      cat("c_fru","Fruits & Légumes","c_ali",0),
+      cat("c_bio","Bio","c_fru",0),
+      cat("c_poi","Poissons","c_ali",1),
+      cat("c_via","Viandes","c_ali",2),
+      cat("c_fro","Fromages","c_ali",3),
+      cat("c_sur","Surgelés","c_ali",4),
+      cat("c_hyg","Hygiène","c_root",2),
+      cat("c_soi","Soins du visage","c_hyg",0)
+    ],
+    items:[
+      item("Liquide vaisselle","c_ent"), item("Éponges","c_ent"), item("Lessive","c_ent",true),
+      item("Sel","c_ali"), item("Huile d'olive","c_ali"),
+      item("Pommes","c_fru"), item("Carottes","c_fru"), item("Bananes","c_fru",true),
+      item("Tomates bio","c_bio"),
+      item("Saumon","c_poi"),
+      item("Poulet","c_via"), item("Bœuf haché","c_via",true),
+      item("Comté","c_fro"), item("Chèvre frais","c_fro"),
+      item("Dentifrice","c_hyg"),
+      item("Piles AA","c_disparu")   /* orphan: category deleted on another device */
+    ]
+  };
+
+  /* ====================================================================== *
+   * buildItemsOutline — the real thing, destined for js/tree.js
+   * ====================================================================== */
+  function buildItemsOutline(doc, rootCategoryId, opts){
+    opts = opts || {};
+    var mode        = opts.mode || "shopping";
+    var hideChecked = !!opts.hideChecked;
+    var collapsed   = opts.collapsed || new Set();
+
+    var live = doc.categories.filter(function(c){ return !c.deletedAt; });
+    var byId = new Map(live.map(function(c){ return [c.id, c]; }));
+
+    var childrenOf = new Map();
+    live.forEach(function(c){
+      if(!childrenOf.has(c.parentId)) childrenOf.set(c.parentId, []);
+      childrenOf.get(c.parentId).push(c);
+    });
+    childrenOf.forEach(function(arr){
+      arr.sort(function(a,b){ return (a.order||0) - (b.order||0); });
+    });
+
+    function visible(i){ return !i.deletedAt && !(hideChecked && i.checked); }
+
+    function sortItems(a){
+      return a.sort(function(x,y){
+        return x.checked === y.checked
+          ? (x.label||"").localeCompare(y.label||"")
+          : (x.checked ? 1 : -1);
+      });
+    }
+
+    var itemsOf = new Map();
+    doc.items.forEach(function(it){
+      if(!visible(it)) return;
+      if(!itemsOf.has(it.categoryId)) itemsOf.set(it.categoryId, []);
+      itemsOf.get(it.categoryId).push(it);
+    });
+    itemsOf.forEach(sortItems);
+
+    var cache = new Map();
+    function countOf(id){
+      if(cache.has(id)) return cache.get(id);
+      var n = (itemsOf.get(id) || []).length;
+      (childrenOf.get(id) || []).forEach(function(ch){ n += countOf(ch.id); });
+      cache.set(id, n);
+      return n;
+    }
+
+    var root = byId.get(rootCategoryId);
+    if(!root) return { rows:[], total:0 };
+
+    var rows = [];
+    (function walk(c, depth){
+      var count   = countOf(c.id);
+      var isEmpty = count === 0;
+      var isRoot  = c.id === rootCategoryId;
+
+      // Shopping mode drops an empty section and, because the count is
+      // recursive, its whole subtree with it. The scope root always renders.
+      if(isEmpty && mode === "shopping" && !isRoot) return;
+
+      var isCollapsed = collapsed.has(c.id);
+      rows.push({ kind:"section", id:c.id, name:c.name, depth:depth,
+                  count:count, collapsed:isCollapsed, empty:isEmpty });
+      if(isCollapsed) return;
+
+      (itemsOf.get(c.id) || []).forEach(function(it){
+        rows.push({ kind:"item", item:it, depth:depth + 1 });
+      });
+      (childrenOf.get(c.id) || []).forEach(function(ch){ walk(ch, depth + 1); });
+    })(root, 0);
+
+    var total = countOf(rootCategoryId);
+
+    // Orphans: items whose category no longer exists. Root scope only — an
+    // orphan is in no category, so it belongs nowhere else.
+    if(rootCategoryId === "c_root"){
+      var orphans = sortItems(doc.items.filter(function(i){
+        return visible(i) && !byId.has(i.categoryId);
+      }));
+      if(orphans.length){
+        var folded = collapsed.has("__orphans");
+        rows.push({ kind:"section", id:"__orphans", name:"Uncategorized", depth:0,
+                    count:orphans.length, collapsed:folded, empty:false, orphan:true });
+        if(!folded){
+          orphans.forEach(function(it){ rows.push({ kind:"item", item:it, depth:1 }); });
+        }
+        total += orphans.length;
+      }
+    }
+
+    return { rows:rows, total:total };
+  }
+
+  /* ====================================================================== *
+   * View state
+   * ====================================================================== */
+  var build = "next";                  // "legacy" | "next"
+  var selectedCategoryId = "c_ali";
+  var collapsedCategoryIds = new Set();  // the tree's own folding
+  var collapsedSectionIds  = new Set();  // the outline's folding — deliberately separate
+  var addDraft = null;                   // { categoryId, text } — survives re-render
+  var openMenu = null;
+
+  var $ = function(id){ return document.getElementById(id); };
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[c];
+    });
+  }
+  function catName(id){
+    var c = doc.categories.find(function(x){ return x.id === id && !x.deletedAt; });
+    return c ? c.name : "—";
+  }
+  function depthClass(d){ return "d" + Math.min(d, 4); }
+
+  /* ---------------------------------------------------------------------- *
+   * Modal — mirrors js/modal.js semantics: resolves null on dismissal
+   * ---------------------------------------------------------------------- */
+  function showModal(o){
+    return new Promise(function(resolve){
+      var prev = document.activeElement;
+      var ov = document.createElement("div");
+      ov.className = "modal-overlay";
+      ov.innerHTML =
+        '<div class="modal" role="dialog" aria-modal="true">' +
+          '<div class="modal-header"><div class="modal-title"></div>' +
+            '<button class="iconbtn" type="button" aria-label="Close">✕</button></div>' +
+          '<div class="modal-body"></div>' +
+          '<div class="modal-footer"></div>' +
+        '</div>';
+      ov.querySelector(".modal-title").textContent = o.title || "";
+
+      var body = ov.querySelector(".modal-body");
+      if(o.body instanceof Node){ body.appendChild(o.body); }
+      else if(o.body){
+        var m = document.createElement("div");
+        m.className = "modal-message";
+        m.textContent = o.body;
+        body.appendChild(m);
+      }
+
+      function close(v){
+        ov.remove();
+        document.removeEventListener("keydown", onKey, true);
+        if(prev && prev.focus) prev.focus();
+        resolve(v);
+      }
+      function onKey(e){
+        if(e.key === "Escape"){ e.preventDefault(); e.stopPropagation(); close(null); }
+      }
+
+      var foot = ov.querySelector(".modal-footer");
+      (o.buttons || []).forEach(function(b){
+        var el = document.createElement("button");
+        el.type = "button";
+        el.className = b.kind ? "btn btn-" + b.kind : "btn";
+        el.textContent = b.label;
+        el.addEventListener("click", function(){ close(b.value); });
+        foot.appendChild(el);
+      });
+
+      ov.querySelector(".modal-header .iconbtn").addEventListener("click", function(){ close(null); });
+      ov.addEventListener("click", function(e){ if(e.target === ov) close(null); });
+      document.addEventListener("keydown", onKey, true);
+      document.body.appendChild(ov);
+
+      var input = ov.querySelector("input");
+      var primary = ov.querySelector(".btn-primary, .btn-danger");
+      (input || primary).focus();
+      if(input && input.select) input.select();
+    });
+  }
+
+  function showPrompt(message, o){
+    o = o || {};
+    var wrap = document.createElement("div");
+    var label = document.createElement("label");
+    label.className = "modal-message";
+    label.textContent = message;
+    var input = document.createElement("input");
+    input.className = "input";
+    input.type = "text";
+    input.value = o.value || "";
+    wrap.append(label, input);
+    input.addEventListener("keydown", function(e){
+      if(e.key !== "Enter") return;
+      e.preventDefault();
+      input.closest(".modal").querySelector(".btn-primary").click();
+    });
+    return showModal({
+      title: o.title || message,
+      body: wrap,
+      buttons: [
+        { label:"Cancel", value:null, kind:"ghost" },
+        { label:o.confirmLabel || "OK", value:"__ok__", kind:"primary" }
+      ]
+    }).then(function(r){
+      if(r !== "__ok__") return null;
+      var v = input.value.trim();
+      return v === "" ? null : v;
+    });
+  }
+
+  function showConfirm(message, o){
+    o = o || {};
+    return showModal({
+      title: o.title || "Are you sure?",
+      body: message,
+      buttons: [
+        { label:"Cancel", value:false, kind:"ghost" },
+        { label:o.confirmLabel || "OK", value:true, kind:o.danger ? "danger" : "primary" }
+      ]
+    }).then(function(v){ return v === true; });
+  }
+
+  /* ---------------------------------------------------------------------- *
+   * Overflow menu
+   * ---------------------------------------------------------------------- */
+  function closeMenu(){
+    if(!openMenu) return;
+    var btn = openMenu.btn;
+    openMenu.el.remove();
+    openMenu = null;
+    if(btn){ btn.setAttribute("aria-expanded", "false"); }
+    document.removeEventListener("keydown", menuKey, true);
+  }
+  function menuKey(e){
+    if(e.key === "Escape"){
+      e.preventDefault();
+      var btn = openMenu && openMenu.btn;
+      closeMenu();
+      if(btn) btn.focus();
+    }
+  }
+  function openNodeMenu(btn, id){
+    closeMenu();
+    var el = document.createElement("div");
+    el.className = "menu";
+    el.setAttribute("role", "menu");
+
+    var entries = [{ act:"add", label:"➕︎  Add subcategory" }];
+    if(id !== "c_root"){
+      entries.push({ act:"rename", label:"✎  Rename" });
+      entries.push({ act:"del", label:"✕  Delete", danger:true });
+    }
+    entries.forEach(function(e){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.setAttribute("role", "menuitem");
+      b.textContent = e.label;
+      if(e.danger) b.className = "danger";
+      b.addEventListener("click", function(){
+        closeMenu();
+        categoryAction(id, e.act);
+      });
+      el.appendChild(b);
+    });
+
+    document.body.appendChild(el);
+    var r = btn.getBoundingClientRect();
+    var w = el.offsetWidth, h = el.offsetHeight;
+    el.style.left = Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8)) + "px";
+    el.style.top  = (r.bottom + h + 8 > window.innerHeight ? r.top - h - 6 : r.bottom + 6) + "px";
+
+    btn.setAttribute("aria-expanded", "true");
+    openMenu = { el:el, btn:btn };
+    document.addEventListener("keydown", menuKey, true);
+    el.querySelector("button").focus();
+  }
+  document.addEventListener("click", function(e){
+    if(openMenu && !openMenu.el.contains(e.target) && e.target !== openMenu.btn) closeMenu();
+  });
+  window.addEventListener("scroll", closeMenu, true);
+
+  /* ---------------------------------------------------------------------- *
+   * Category actions — unchanged from ui.js, only the trigger differs
+   * ---------------------------------------------------------------------- */
+  function categoryAction(id, act){
+    if(act === "add"){
+      showPrompt("Subcategory name?", { title:"New subcategory", confirmLabel:"Add" }).then(function(name){
+        if(!name) return;
+        var sibs = doc.categories.filter(function(c){ return !c.deletedAt && c.parentId === id; });
+        var max = sibs.length ? Math.max.apply(null, sibs.map(function(c){ return c.order || 0; })) : -1;
+        doc.categories.push(cat("c_" + (++uid), name, id, max + 1));
+        collapsedCategoryIds.delete(id);
+        render();
+      });
+    }
+    if(act === "rename"){
+      var c = doc.categories.find(function(x){ return x.id === id; });
+      showPrompt("New name?", { title:"Rename category", value:c.name, confirmLabel:"Rename" }).then(function(name){
+        if(!name) return;
+        c.name = name;
+        render();
+      });
+    }
+    if(act === "del"){
+      showConfirm("Delete this category and all subcategories? Items will be moved to root.",
+        { title:"Delete category", confirmLabel:"Delete", danger:true }).then(function(ok){
+        if(!ok) return;
+        var kill = new Set([id]), grew = true;
+        while(grew){
+          grew = false;
+          doc.categories.forEach(function(c){
+            if(!c.deletedAt && c.parentId && kill.has(c.parentId) && !kill.has(c.id)){
+              kill.add(c.id); grew = true;
+            }
+          });
+        }
+        doc.categories.forEach(function(c){ if(kill.has(c.id)) c.deletedAt = T; });
+        doc.items.forEach(function(i){ if(kill.has(i.categoryId)) i.categoryId = "c_root"; });
+        if(kill.has(selectedCategoryId)) selectedCategoryId = "c_root";
+        render();
+      });
+    }
+  }
+
+  /* ---------------------------------------------------------------------- *
+   * Tree
+   * ---------------------------------------------------------------------- */
+  function renderTree(){
+    var live = doc.categories.filter(function(c){ return !c.deletedAt; });
+    var byId = new Map(live.map(function(c){ return [c.id, c]; }));
+    var kids = new Map();
+    live.forEach(function(c){
+      if(!kids.has(c.parentId)) kids.set(c.parentId, []);
+      kids.get(c.parentId).push(c);
+    });
+    kids.forEach(function(a){ a.sort(function(x,y){ return (x.order||0) - (y.order||0); }); });
+
+    var host = $("tree");
+    host.innerHTML = "";
+
+    (function walk(c, depth){
+      var children = kids.get(c.id) || [];
+      var folded = collapsedCategoryIds.has(c.id);
+
+      var row = document.createElement("div");
+      row.className = "node" + (selectedCategoryId === c.id ? " selected" : "");
+
+      var left = document.createElement("div");
+      left.className = "left";
+
+      var ind = document.createElement("span");
+      ind.style.cssText = "flex:0 0 auto;width:" + (depth * 14) + "px";
+      left.appendChild(ind);
+
+      var tw = document.createElement("span");
+      tw.className = "twisty" + (children.length ? "" : " ghost");
+      tw.textContent = children.length ? (folded ? "▶" : "▼") : "";
+      if(children.length){
+        tw.addEventListener("click", function(e){
+          e.stopPropagation();
+          if(folded) collapsedCategoryIds.delete(c.id); else collapsedCategoryIds.add(c.id);
+          render();
+        });
+      }
+      left.appendChild(tw);
+
+      if(c.id !== "c_root"){
+        var h = document.createElement("span");
+        h.className = "handle";
+        h.title = "Drag to move";
+        h.textContent = "⋮⋮";
+        left.appendChild(h);
+      }
+
+      var nm = document.createElement("div");
+      nm.className = "name";
+      nm.textContent = c.name;
+      nm.title = c.name;
+      left.appendChild(nm);
+
+      var acts = document.createElement("div");
+      acts.className = "actions";
+
+      if(build === "legacy"){
+        [["🎯","select"],["➕","add"],["✏️","rename"],["🗑️","del"]]
+          .forEach(function(p){
+            if(c.id === "c_root" && (p[1] === "rename" || p[1] === "del")) return;
+            var b = document.createElement("button");
+            b.type = "button";
+            b.className = "iconbtn";
+            b.textContent = p[0];
+            b.addEventListener("click", function(e){
+              e.stopPropagation();
+              if(p[1] === "select"){ selectedCategoryId = c.id; render(); return; }
+              categoryAction(c.id, p[1]);
+            });
+            acts.appendChild(b);
+          });
+      }else{
+        var mb = document.createElement("button");
+        mb.type = "button";
+        mb.className = "iconbtn menubtn";
+        mb.textContent = "⋯";
+        mb.title = "Category actions";
+        mb.setAttribute("aria-haspopup", "menu");
+        mb.setAttribute("aria-expanded", "false");
+        mb.addEventListener("click", function(e){
+          e.stopPropagation();
+          if(openMenu && openMenu.btn === mb){ closeMenu(); return; }
+          openNodeMenu(mb, c.id);
+        });
+        acts.appendChild(mb);
+      }
+
+      row.append(left, acts);
+      row.addEventListener("click", function(){
+        selectedCategoryId = c.id;
+        addDraft = null;
+        render();
+      });
+      host.appendChild(row);
+
+      if(!folded) children.forEach(function(ch){ walk(ch, depth + 1); });
+    })(byId.get("c_root"), 0);
+  }
+
+  /* ---------------------------------------------------------------------- *
+   * Items — legacy flat list
+   * ---------------------------------------------------------------------- */
+  function itemRow(it, extraClass){
+    var row = document.createElement("div");
+    row.className = "item" + (it.checked ? " checked" : "") + (extraClass ? " " + extraClass : "");
+
+    var left = document.createElement("div");
+    left.className = "item-left";
+
+    var cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = it.checked;
+    cb.id = "chk_" + it.id;
+    cb.addEventListener("change", function(){ it.checked = !it.checked; render(); });
+
+    var txt = document.createElement("div");
+    var lab = document.createElement("div");
+    lab.className = "label";
+    lab.textContent = it.label;
+    txt.appendChild(lab);
+
+    if(build === "legacy"){
+      var c = document.createElement("div");
+      c.className = "cat";
+      c.textContent = catName(it.categoryId);
+      txt.appendChild(c);
+    }
+
+    left.append(cb, txt);
+    row.appendChild(left);
+
+    if(doc.mode === "edit"){
+      var acts = document.createElement("div");
+      acts.style.cssText = "display:flex;gap:8px;flex:0 0 auto";
+      var del = document.createElement("button");
+      del.type = "button";
+      del.className = "btn btn-small btn-danger";
+      del.textContent = "Delete";
+      del.addEventListener("click", function(){
+        showConfirm('Delete "' + it.label + '"?', { title:"Delete item", confirmLabel:"Delete", danger:true })
+          .then(function(ok){
+            if(!ok) return;
+            it.deletedAt = T;
+            render();
+          });
+      });
+      acts.appendChild(del);
+      row.appendChild(acts);
+    }
+    return row;
+  }
+
+  function renderLegacyItems(){
+    var host = $("itemsHost");
+    host.innerHTML = "";
+
+    var sel = selectedCategoryId || "c_root";
+    var list = doc.items
+      .filter(function(i){ return !i.deletedAt; })
+      .filter(function(i){ return i.categoryId === sel || sel === "c_root"; })
+      .filter(function(i){ return doc.ui.hideChecked ? !i.checked : true; })
+      .sort(function(a,b){
+        return a.checked === b.checked
+          ? (a.label||"").localeCompare(b.label||"")
+          : (a.checked ? 1 : -1);
+      });
+
+    $("itemsTitle").textContent = "Items";
+    $("itemsCount").textContent = list.length;
+
+    var box = document.createElement("div");
+    box.className = "items";
+    list.forEach(function(it){ box.appendChild(itemRow(it)); });
+    host.appendChild(box);
+
+    if(!list.length){
+      var e = document.createElement("div");
+      e.className = "empty-state";
+      e.textContent = sel === "c_root"
+        ? "No items."
+        : "No items directly in “" + catName(sel) + "”. Its subcategories are not shown.";
+      host.appendChild(e);
+    }
+  }
+
+  /* ---------------------------------------------------------------------- *
+   * Items — grouped outline
+   * ---------------------------------------------------------------------- */
+  function renderOutline(){
+    var host = $("itemsHost");
+    host.innerHTML = "";
+
+    var scope = selectedCategoryId || "c_root";
+    var out = buildItemsOutline(doc, scope, {
+      mode: doc.mode,
+      hideChecked: doc.ui.hideChecked,
+      collapsed: collapsedSectionIds
+    });
+
+    $("itemsTitle").innerHTML = 'Items <span class="scope">— ' + esc(catName(scope)) + "</span>";
+    $("itemsCount").textContent = out.total;
+
+    var box = document.createElement("div");
+    box.className = "outline";
+
+    out.rows.forEach(function(r){
+      if(r.kind === "item"){
+        box.appendChild(itemRow(r.item, depthClass(r.depth)));
+        return;
+      }
+
+      var sec = document.createElement("div");
+      sec.className = "sec " + depthClass(r.depth) +
+                      (r.depth === 0 ? " depth0" : "") +
+                      (r.empty ? " empty" : "") +
+                      (r.orphan ? " orphan" : "");
+      sec.dataset.sec = r.id;
+
+      var tw = document.createElement("span");
+      tw.className = "twisty";
+      tw.textContent = r.collapsed ? "▶" : "▼";
+      tw.setAttribute("aria-hidden", "true");
+
+      var nm = document.createElement("span");
+      nm.className = "sec-name";
+      nm.textContent = r.name;
+
+      var rule = document.createElement("span");
+      rule.className = "rule";
+
+      var num = document.createElement("span");
+      num.className = "num";
+      num.textContent = r.count;
+
+      sec.append(tw, nm, rule, num);
+
+      if(r.id !== "__orphans"){
+        var plus = document.createElement("button");
+        plus.type = "button";
+        plus.className = "iconbtn";
+        plus.textContent = "➕";
+        plus.title = "Add an item to " + r.name;
+        plus.setAttribute("aria-label", "Add an item to " + r.name);
+        plus.addEventListener("click", function(e){
+          e.stopPropagation();
+          collapsedSectionIds.delete(r.id);      // adding into a folded section expands it
+          addDraft = { categoryId:r.id, text:"" };
+          render();
+        });
+        sec.appendChild(plus);
+      }
+
+      // A section header toggles collapse. It does NOT select or re-scope —
+      // see "The two-state trap" in the spec.
+      sec.addEventListener("click", function(){
+        if(collapsedSectionIds.has(r.id)) collapsedSectionIds.delete(r.id);
+        else collapsedSectionIds.add(r.id);
+        render();
+      });
+
+      box.appendChild(sec);
+
+      if(addDraft && addDraft.categoryId === r.id && !r.collapsed){
+        box.appendChild(buildAddRow(r));
+      }
+    });
+
+    host.appendChild(box);
+
+    if(out.total === 0){
+      var e = document.createElement("div");
+      e.className = "empty-state";
+      e.textContent = doc.ui.hideChecked
+        ? "Everything here is checked off."
+        : "Nothing in “" + catName(scope) + "” yet.";
+      host.appendChild(e);
+    }
+  }
+
+  function buildAddRow(r){
+    var wrap = document.createElement("div");
+    wrap.className = "inline-add " + depthClass(r.depth + 1);
+
+    var input = document.createElement("input");
+    input.className = "input";
+    input.id = "inlineAdd";
+    input.value = addDraft.text;
+    input.placeholder = "New item in " + r.name + "…";
+
+    var hint = document.createElement("span");
+    hint.className = "hint";
+    hint.textContent = "↵ add · esc close";
+
+    input.addEventListener("input", function(){ addDraft.text = input.value; });
+    input.addEventListener("keydown", function(e){
+      if(e.key === "Enter"){
+        e.preventDefault();
+        var label = input.value.trim();
+        if(!label) return;
+        doc.items.push(item(label, r.id));
+        addDraft.text = "";            // stays open, cleared, for the next one
+        render();
+      }
+      if(e.key === "Escape"){
+        e.preventDefault();
+        addDraft = null;
+        render();
+      }
+    });
+
+    wrap.append(input, hint);
+    return wrap;
+  }
+
+  /* ---------------------------------------------------------------------- *
+   * Render
+   * ---------------------------------------------------------------------- */
+  function render(){
+    closeMenu();
+    $("app").classList.toggle("legacy", build === "legacy");
+
+    $("bLegacy").classList.toggle("active", build === "legacy");
+    $("bNext").classList.toggle("active", build === "next");
+    $("mEdit").classList.toggle("active", doc.mode === "edit");
+    $("mShop").classList.toggle("active", doc.mode === "shopping");
+    $("hideChecked").checked = doc.ui.hideChecked;
+    $("scopeName").textContent = catName(selectedCategoryId);
+
+    renderTree();
+    if(build === "legacy") renderLegacyItems(); else renderOutline();
+
+    // The open add row is module state, not DOM state — restore focus and caret.
+    if(build === "next" && addDraft){
+      var el = $("inlineAdd");
+      if(el){
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+      }
+    }
+  }
+
+  /* ---------------------------------------------------------------------- *
+   * Controls
+   * ---------------------------------------------------------------------- */
+  $("buildSeg").addEventListener("click", function(e){
+    var b = e.target.closest("[data-build]");
+    if(!b) return;
+    build = b.dataset.build;
+    addDraft = null;
+    render();
+  });
+  $("modeSeg").addEventListener("click", function(e){
+    var b = e.target.closest("[data-mode]");
+    if(!b) return;
+    doc.mode = b.dataset.mode;
+    render();
+  });
+  $("hideChecked").addEventListener("change", function(){
+    doc.ui.hideChecked = $("hideChecked").checked;
+    render();
+  });
+
+  function topAdd(){
+    var v = $("topInput").value.trim();
+    if(!v) return;
+    doc.items.push(item(v, selectedCategoryId || "c_root"));
+    $("topInput").value = "";
+    render();
+  }
+  $("btnTopAdd").addEventListener("click", topAdd);
+  $("topInput").addEventListener("keydown", function(e){
+    if(e.key === "Enter"){ e.preventDefault(); topAdd(); }
+  });
+  $("btnAddCat").addEventListener("click", function(){
+    categoryAction(selectedCategoryId || "c_root", "add");
+  });
+
+  /* ---------------------------------------------------------------------- *
+   * Review checklist
+   * ---------------------------------------------------------------------- */
+  var CHECKS = [
+    {
+      t: "The bug itself",
+      d: "Scope to <b>Alimentation</b> and flip to <b>Today</b>: two items. Flip back: the whole subtree. Today’s filter is an exact <code>categoryId</code> match.",
+      run: function(){ selectedCategoryId = "c_ali"; build = "legacy"; }
+    },
+    {
+      t: "Recursive, visible-only counts",
+      d: "<b>Fruits &amp; Légumes</b> reads 4 — three of its own plus one in <b>Bio</b>. Turn on <b>Hide checked</b> and it reads 3: the number means “left to buy”.",
+      run: function(){ selectedCategoryId = "c_ali"; build = "next"; doc.ui.hideChecked = false; }
+    },
+    {
+      t: "Empty sections follow the mode",
+      d: "<b>Surgelés</b> is empty. In <b>Edit</b> its header shows so you can add to it; in <b>Shopping</b> it disappears as noise.",
+      run: function(){ selectedCategoryId = "c_ali"; build = "next"; doc.mode = "edit"; },
+      flash: "c_sur"
+    },
+    {
+      t: "“All” is no longer a flat dump",
+      d: "It becomes an ordinary root walk, which deletes the <code>c_root</code> special case. This is the one change an existing user notices immediately.",
+      run: function(){ selectedCategoryId = "c_root"; build = "next"; doc.mode = "shopping"; }
+    },
+    {
+      t: "Orphans stay reachable — spec change",
+      d: "<code>Piles AA</code>’s category was deleted on another device. A plain subtree walk would hide it forever; the <b>Uncategorized</b> section at root scope is the mitigation.",
+      run: function(){ selectedCategoryId = "c_root"; build = "next"; doc.mode = "shopping"; },
+      flash: "__orphans"
+    },
+    {
+      t: "Add into a section, not the scope",
+      d: "Hit <b>➕</b> on <b>Poissons</b> and type. Enter files it there and keeps the row open so you can list a whole aisle; Esc closes it.",
+      run: function(){
+        selectedCategoryId = "c_ali"; build = "next"; doc.mode = "shopping";
+        collapsedSectionIds.delete("c_poi");
+        addDraft = { categoryId:"c_poi", text:"" };
+      }
+    },
+    {
+      t: "Header click only folds — spec change",
+      d: "In chat I said it would also select the category. It can’t: scope <i>is</i> the selection, so selecting would re-scope and collapse the outline you clicked inside.",
+      run: function(){ selectedCategoryId = "c_ali"; build = "next"; doc.mode = "shopping"; },
+      flash: "c_fru"
+    },
+    {
+      t: "Two foldings that don’t interfere",
+      d: "Fold <b>Alimentation</b> in the tree, then in the outline. Tree folding hides navigation; section folding hides content. One shared set would empty your list.",
+      run: function(){ selectedCategoryId = "c_root"; build = "next"; doc.mode = "shopping"; }
+    },
+    {
+      t: "Names get their width back",
+      d: "<b>Produits d’entretien ménager</b> is clipped under <b>Today</b> — four buttons wrap and take half the row. The <b>⋯</b> menu returns the space.",
+      run: function(){ build = "legacy"; selectedCategoryId = "c_root"; }
+    }
+  ];
+
+  var list = $("checkList");
+  CHECKS.forEach(function(c){
+    var li = document.createElement("li");
+    li.className = "check";
+
+    var t = document.createElement("div");
+    t.className = "t";
+    t.textContent = c.t;
+
+    var d = document.createElement("div");
+    d.className = "d";
+    d.innerHTML = c.d;
+
+    var b = document.createElement("button");
+    b.type = "button";
+    b.textContent = "Set it up";
+    b.addEventListener("click", function(){
+      c.run();
+      render();
+      if(c.flash){
+        var el = document.querySelector('[data-sec="' + c.flash + '"]');
+        if(el){
+          el.classList.add("flash");
+          el.scrollIntoView({ block:"center", behavior:"smooth" });
+          setTimeout(function(){ el.classList.remove("flash"); }, 1600);
+        }
+      }
+    });
+
+    li.append(t, d, b);
+    list.appendChild(li);
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
