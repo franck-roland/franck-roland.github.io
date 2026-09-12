@@ -1,7 +1,7 @@
 # Grouped items outline — design
 
 Date: 2026-09-12
-Status: approved; not yet implemented
+Status: implemented — 19 `node --test` assertions, 22 browser assertions
 Scope: `shopping-spa`
 Preview: [`2026-09-12-items-outline-preview.html`](./2026-09-12-items-outline-preview.html)
 &mdash; a clickable prototype with a Today/Proposed switch across both panels.
@@ -276,6 +276,26 @@ outside the repository, zero runtime dependencies, no build step.
 | `index.html` | Add an id to the Items panel title; remove `#itemCategorySelect` |
 | `docs/superpowers/verification/itemsview.mjs` | New — 8 assertions |
 | `docs/superpowers/verification/README.md` | Document the new script |
+
+## What changed during implementation
+
+Two things the design did not anticipate, both found by the browser checks:
+
+**The tree's chrome needed tightening, not just the buttons.** Removing the four
+inline buttons was not enough on its own: with the `⋯` button at `6px 8px`
+padding and three 8px gaps, `Entretien ménager` still wanted 140px in a 136px
+box. The button is now `4px 6px` on a 15px glyph and the row gaps are 6px, which
+also brings the node down from 51px tall to a single ~41px row. The verification
+asserts the row budget (`.actions` under 25% of the row, sitting beside the name
+rather than under it) instead of "no name is ever clipped" — any name can be made
+long enough to need an ellipsis, so the budget is the real property.
+
+**Folding state is module-level, which the tests had to respect.**
+`collapsedSectionIds` and `collapsedCategoryIds` live at module scope so a fold
+survives a re-render. A browser check that builds a fresh `createUI()` over the
+cached module therefore inherits the previous check's folds. `itemsview.mjs`
+reloads the page per check; this is noted in the verification README, because
+anyone adding a check here will hit it.
 
 ## Accepted consequences
 
