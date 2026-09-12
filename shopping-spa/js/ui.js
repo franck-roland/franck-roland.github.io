@@ -7,6 +7,7 @@ import {
 } from "./model.js";
 import { buildConflictSummary } from "./conflictDiff.js";
 import { isFocusWanted, toggleFocus, applyFocus } from "./focus.js";
+import { showAlert, showConfirm, showPrompt } from "./modal.js";
 
 const collapsedCategoryIds = new Set(); // session-only (you can persist later)
 
@@ -56,7 +57,17 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     btnConflictRemote: document.getElementById("btnConflictRemote"),
   };
 
-  
+  // Dialogs are async, unlike the native prompt/confirm they replaced. The 10s
+  // poller in app.js can swap state.activeDoc for a freshly loaded object while
+  // a dialog is open; a handler still holding the old reference would mutate a
+  // detached doc, and persistActiveDoc() would then write the *new* one — the
+  // change would be silently lost. So re-read the doc after every await.
+  function liveDoc(listId){
+    const doc = getState().activeDoc;
+    if(!doc || doc.listId !== listId) return null;
+    return doc;
+  }
+
   let dragCategoryId = null;
 
   function clearDropTargets(){
@@ -116,10 +127,16 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     els.btnAddCategory.addEventListener("click", async () => {
       const st = getState();
       if(!st.activeDoc) return;
+      const listId = st.activeDoc.listId;
       const parentId = st.selectedCategoryId || "c_root";
-      const name = prompt("Category name?");
+
+      const name = await showPrompt("Category name?", { title: "New category", confirmLabel: "Add" });
       if(!name) return;
-      upsertCategory(st.activeDoc, { name: name.trim(), parentId });
+
+      const doc = liveDoc(listId);
+      if(!doc){ render(); return; }
+
+      upsertCategory(doc, { name, parentId });
       await persistActiveDoc();
       render();
     });
@@ -142,8 +159,15 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     els.btnDeleteList.addEventListener("click", async () => {
       const st = getState();
       if(!st.activeDoc) return;
-      if(!confirm(`Delete list "${st.activeDoc.title}"?`)) return;
-      await st.actions.deleteList(st.activeDoc.listId);
+      const listId = st.activeDoc.listId;
+
+      const ok = await showConfirm(`Delete list "${st.activeDoc.title}"?`, {
+        title: "Delete list", confirmLabel: "Delete", danger: true
+      });
+      if(!ok) return;
+      if(!liveDoc(listId)){ render(); return; }
+
+      await st.actions.deleteList(listId);
       render();
     });
 
@@ -463,7 +487,7 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
           await persistActiveDoc();
           render();
         }catch(err){
-          alert(err.message);
+          await showAlert(err.message, { title: "Cannot move category" });
         }
       });
 
@@ -482,26 +506,54 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     }
 
     if(act === "add"){
-      const name = prompt("Subcategory name?");
+      const listId = doc.listId;
+
+      const name = await showPrompt("Subcategory name?", { title: "New subcategory", confirmLabel: "Add" });
       if(!name) return;
-      upsertCategory(doc, { name: name.trim(), parentId: categoryId });
+
+      const live = liveDoc(listId);
+      if(!live){ render(); return; }
+
+      upsertCategory(live, { name, parentId: categoryId });
       st.selectedCategoryId = categoryId;
       setState(st);
       await persistActiveDoc();
     }
 
     if(act === "rename"){
+      const listId = doc.listId;
       const c = doc.categories.find(x => x.id === categoryId && !x.deletedAt);
       if(!c) return;
-      const name = prompt("New name?", c.name);
+
+      const name = await showPrompt("New name?", {
+        title: "Rename category", value: c.name, confirmLabel: "Rename"
+      });
       if(!name) return;
-      upsertCategory(doc, { id: c.id, name: name.trim(), parentId: c.parentId });
+
+      // The poller may have deleted this category remotely while the dialog
+      // was open, so look it up again on the live doc.
+      const live = liveDoc(listId);
+      if(!live){ render(); return; }
+      const target = live.categories.find(x => x.id === categoryId && !x.deletedAt);
+      if(!target){ render(); return; }
+
+      upsertCategory(live, { id: target.id, name, parentId: target.parentId });
       await persistActiveDoc();
     }
 
     if(act === "del"){
-      if(!confirm("Delete this category and all subcategories? Items will be moved to root.")) return;
-      deleteCategory(doc, categoryId);
+      const listId = doc.listId;
+
+      const ok = await showConfirm(
+        "Delete this category and all subcategories? Items will be moved to root.",
+        { title: "Delete category", confirmLabel: "Delete", danger: true }
+      );
+      if(!ok) return;
+
+      const live = liveDoc(listId);
+      if(!live){ render(); return; }
+
+      deleteCategory(live, categoryId);
       if(st.selectedCategoryId === categoryId) st.selectedCategoryId = "c_root";
       setState(st);
       await persistActiveDoc();
@@ -575,9 +627,18 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
       const editBtn = row.querySelector("button[data-act=edit]");
       if(editBtn){
         editBtn.addEventListener("click", async () => {
-          const newLabel = prompt("Item label:", it.label);
+          const listId = doc.listId;
+
+          const newLabel = await showPrompt("Item label:", {
+            title: "Rename item", value: it.label, confirmLabel: "Save"
+          });
           if(!newLabel) return;
-          updateItem(doc, it.id, { label: newLabel.trim() });
+
+          const live = liveDoc(listId);
+          if(!live){ render(); return; }
+          if(!live.items.some(x => x.id === it.id && !x.deletedAt)){ render(); return; }
+
+          updateItem(live, it.id, { label: newLabel });
           await persistActiveDoc();
           render();
         });
@@ -586,8 +647,17 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
       const delBtn = row.querySelector("button[data-act=del]");
       if(delBtn){
         delBtn.addEventListener("click", async () => {
-          if(!confirm("Delete item?")) return;
-          deleteItem(doc, it.id);
+          const listId = doc.listId;
+
+          const ok = await showConfirm(`Delete "${it.label}"?`, {
+            title: "Delete item", confirmLabel: "Delete", danger: true
+          });
+          if(!ok) return;
+
+          const live = liveDoc(listId);
+          if(!live){ render(); return; }
+
+          deleteItem(live, it.id);
           await persistActiveDoc();
           render();
         });
