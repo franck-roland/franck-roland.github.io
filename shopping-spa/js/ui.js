@@ -6,6 +6,7 @@ import {
   setMode, setHideChecked, markDirty, moveCategory, reorderCategory
 } from "./model.js";
 import { buildConflictSummary } from "./conflictDiff.js";
+import { isFocusWanted, toggleFocus, applyFocus } from "./focus.js";
 
 const collapsedCategoryIds = new Set(); // session-only (you can persist later)
 
@@ -37,6 +38,7 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
 
     btnDeleteList: document.getElementById("btnDeleteList"),
     btnShare: document.getElementById("btnShare"),
+    btnFocus: document.getElementById("btnFocus"),
     driveInfo: document.getElementById("driveInfo"),
 
     // conflict UX
@@ -81,6 +83,11 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
 
   function bind(){
     els.listTitle.addEventListener("input", debouncedSaveTitle);
+
+    els.btnFocus.addEventListener("click", () => {
+      toggleFocus();
+      render();
+    });
 
     els.modeEdit.addEventListener("click", async () => {
       const st = getState();
@@ -600,6 +607,14 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     }
   }
 
+  function renderFocusButton(){
+    const on = isFocusWanted();
+    els.btnFocus.setAttribute("aria-pressed", on ? "true" : "false");
+    els.btnFocus.title = on ? "Exit focus mode (Esc)" : "Focus mode \u2014 hide the app chrome";
+    els.btnFocus.querySelector(".focus-icon").textContent = on ? "\u2921" : "\u2922";
+    els.btnFocus.querySelector(".focus-label").textContent = on ? "Exit focus" : "Focus";
+  }
+
   function renderHeader(){
     const st = getState();
     const doc = st.activeDoc;
@@ -607,8 +622,12 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     if(!doc){
       els.emptyState.classList.remove("hidden");
       els.listView.classList.add("hidden");
+      applyFocus(false);
       return;
     }
+
+    applyFocus(true);
+    renderFocusButton();
 
     const footerbar = document.querySelector(".footerbar");
     if(footerbar){

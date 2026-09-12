@@ -4,6 +4,7 @@ import { createUI } from "./ui.js";
 import { DriveAuth } from "./driveAuth.js";
 import { DriveSync } from "./driveSync.js";
 import { extractDriveFileId } from "./util.js";
+import { isFocusWanted, setFocusWanted } from "./focus.js";
 
 const els = {
   btnSignIn: document.getElementById("btnSignIn"),
@@ -372,10 +373,16 @@ async function boot(){
   els.btnToggleSidebar?.addEventListener("click", toggleSidebar);
   els.sidebarBackdrop?.addEventListener("click", closeSidebar);
 
-  // Close sidebar on ESC key
+  // ESC closes the sidebar first, then leaves focus mode
   document.addEventListener("keydown", (e) => {
-    if(e.key === "Escape"){
+    if(e.key !== "Escape") return;
+    if(els.sidebar?.classList.contains("open")){
       closeSidebar();
+      return;
+    }
+    if(isFocusWanted()){
+      setFocusWanted(false);
+      ui.render();
     }
   });
 

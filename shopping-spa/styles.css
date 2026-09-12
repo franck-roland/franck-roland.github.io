@@ -578,3 +578,40 @@ body{
 .node .indent{
   flex: 0 0 auto;
 }
+
+/* ---------- Focus mode ---------- */
+/* Full bleed: the list view takes the whole viewport. The toggle in the list
+   header stays on screen, so it is also the way back out. */
+
+body.focus-mode .topbar,
+body.focus-mode .sidebar,
+body.focus-mode .sidebar-backdrop{
+  display:none;
+}
+
+body.focus-mode .layout{
+  grid-template-columns: 1fr;
+  min-height: 100vh;
+}
+
+body.focus-mode .content{ padding:8px; }
+
+.btn-focus{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+}
+.focus-icon{ font-size:15px; line-height:1; }
+
+body.focus-mode .btn-focus{
+  border-color: var(--primary);
+  color: var(--text);
+  background: rgba(59,130,246,.14);
+}
+
+@media (max-width: 980px){
+  /* the actions row already wraps here, so the idle toggle goes icon-only —
+     but "Exit focus" keeps its label, because that is the way out */
+  .btn-focus .focus-label{ display:none; }
+  body.focus-mode .btn-focus .focus-label{ display:inline; }
+}
