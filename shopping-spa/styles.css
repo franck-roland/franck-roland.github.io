@@ -526,17 +526,42 @@ body{
   }
 }
 
-/* ---------- Category node actions overflow fix ---------- */
-.node{
-  overflow: hidden;
-}
+/* ---------- Category node actions ---------- */
+/* One overflow button, never wrapping: four inline buttons took half the row
+   and pushed onto a second line, which is what truncated the names. */
 .node .actions{
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;          /* ✅ allow wrapping instead of overflow */
+  flex-wrap: nowrap;
   justify-content: flex-end;
-  max-width: 50%;
+  flex: 0 0 auto;
+}
+
+/* The row's chrome is deliberately tight: every pixel spent on the twisty,
+   handle, gaps and menu button is a pixel the category name does not get, and
+   the name is the thing being read. */
+.node{ gap: 6px; }
+.node .left{ gap: 6px; }
+.node .handle{ padding: 2px 4px; }
+.node .menubtn{
+  padding: 4px 6px;
+  line-height: 1;
+  font-size: 15px;
+}
+
+/* Revealed on hover where hovering exists; always present on touch, or it
+   would be unreachable. */
+@media (hover: hover){
+  .node .menubtn{
+    opacity: 0;
+    transition: opacity .12s ease;
+  }
+  .node:hover .menubtn,
+  .node:focus-within .menubtn,
+  .node .menubtn[aria-expanded="true"]{
+    opacity: 1;
+  }
 }
 .node .left{
   display:flex;
@@ -632,4 +657,139 @@ body.modal-open{ overflow:hidden; }
 @media (max-width: 520px){
   .modal-footer{ flex-direction:column-reverse; align-items:stretch; }
   .modal-footer .btn{ width:100%; }
+}
+
+/* ---------- Category overflow menu ---------- */
+/* Lives on <body> and is positioned against the button, so the panel's
+   scrolling cannot clip it. */
+.menu{
+  position: fixed;
+  z-index: 900;
+  min-width: 186px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: 0 18px 46px rgba(0,0,0,.6);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.menu button{
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.menu button:hover{ background: rgba(255,255,255,.06); }
+.menu button.danger{ color: #fca5a5; }
+.menu button.danger:hover{ background: rgba(239,68,68,.14); }
+
+/* ---------- Grouped items outline ---------- */
+.items.outline{ gap: 4px; }
+
+/* One indent step per level, capped at 4 so a deep tree still fits a phone. */
+.d0{ margin-left: 0; }
+.d1{ margin-left: 16px; }
+.d2{ margin-left: 32px; }
+.d3{ margin-left: 48px; }
+.d4{ margin-left: 64px; }
+
+.sec{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background .15s ease;
+}
+.sec:hover{ background: rgba(255,255,255,.035); }
+
+.sec-name{
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sec-root .sec-name{ font-size: 12px; color: var(--text); }
+
+.sec-rule{
+  flex: 1 1 auto;
+  min-width: 12px;
+  height: 1px;
+  background: var(--border);
+}
+
+.sec-count{
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* An empty section only appears in Edit mode; it recedes rather than shouts. */
+.sec-empty .sec-name,
+.sec-empty .sec-count{ color: #5b6a7d; }
+
+/* Items whose category was deleted elsewhere. Not a real category. */
+.sec-orphan .sec-name{ color: #fbbf24; }
+.sec-orphan .sec-rule{ background: rgba(251,191,36,.3); }
+
+.sec-add{ flex: 0 0 auto; }
+@media (hover: hover){
+  .sec-add{ opacity: 0; transition: opacity .12s ease; }
+  .sec:hover .sec-add,
+  .sec:focus-within .sec-add{ opacity: 1; }
+}
+
+.outline .item{ border-radius: 12px; }
+.outline .item .label{ min-width: 0; overflow-wrap: anywhere; }
+
+.items-empty{
+  margin-top: 4px;
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+  text-align: center;
+}
+
+/* ---------- Inline add row ---------- */
+.inline-add{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.inline-add .input{
+  border-color: rgba(59,130,246,.5);
+  background: rgba(59,130,246,.06);
+}
+.inline-add-hint{
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+@media (max-width: 520px){
+  .inline-add-hint{ display: none; }
+}
+
+/* ---------- Items panel count ---------- */
+.count-chip{
+  font-size: 11px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-variant-numeric: tabular-nums;
 }

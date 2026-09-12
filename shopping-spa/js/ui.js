@@ -1,4 +1,4 @@
-import { buildTree, flattenTree } from "./tree.js";
+import { buildTree, flattenTree, buildItemsOutline, ORPHAN_SECTION_ID } from "./tree.js";
 import { escapeHtml, debounce } from "./util.js";
 import {
   addItem, deleteItem, toggleItemChecked, updateItem,
@@ -10,6 +10,15 @@ import { isFocusWanted, toggleFocus, applyFocus } from "./focus.js";
 import { showAlert, showChoice, showConfirm, showPrompt } from "./modal.js";
 
 const collapsedCategoryIds = new Set(); // session-only (you can persist later)
+
+// Folding a branch in the tree hides *navigation*; folding a section in the
+// items panel hides *content*. Sharing one set would mean collapsing a tree
+// branch silently emptied your shopping list, so they stay separate.
+const collapsedSectionIds = new Set();
+
+// render() rebuilds the items panel wholesale, so an open add row cannot live
+// in the DOM — it would be destroyed by the re-render its own save triggers.
+let addDraft = null;   // { categoryId, text } | null
 
 /** The conflict dialog's body: an explanation plus the diff summary. */
 function buildConflictBody(summary){
@@ -54,7 +63,8 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     btnAddCategory: document.getElementById("btnAddCategory"),
     categoryTree: document.getElementById("categoryTree"),
 
-    itemCategorySelect: document.getElementById("itemCategorySelect"),
+    itemsTitle: document.getElementById("itemsTitle"),
+    itemsCount: document.getElementById("itemsCount"),
     newItemInput: document.getElementById("newItemInput"),
     btnQuickAdd: document.getElementById("btnQuickAdd"),
     btnAddItem: document.getElementById("btnAddItem"),
@@ -91,6 +101,77 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
       el.classList.remove("drop-target", "drop-before", "drop-after");
     });
   }
+
+  // ---- Category overflow menu --------------------------------------------
+  // The popover lives on <body>, positioned against the button's rect: inside
+  // the row it would be clipped by the panel's scrolling and would sit inside
+  // the row's own drag handlers.
+
+  let openMenu = null;   // { el, btn } | null
+
+  function closeMenu(){
+    if(!openMenu) return;
+    const { el, btn } = openMenu;
+    openMenu = null;
+    el.remove();
+    btn?.setAttribute("aria-expanded", "false");
+    document.removeEventListener("keydown", onMenuKey, true);
+  }
+
+  function onMenuKey(e){
+    if(e.key !== "Escape") return;
+    e.preventDefault();
+    e.stopPropagation();
+    const btn = openMenu?.btn;
+    closeMenu();
+    btn?.focus();
+  }
+
+  function openCategoryMenu(btn, categoryId){
+    closeMenu();
+
+    const el = document.createElement("div");
+    el.className = "menu";
+    el.setAttribute("role", "menu");
+
+    const entries = [{ act: "add", label: "Add subcategory" }];
+    if(categoryId !== "c_root"){
+      entries.push({ act: "rename", label: "Rename" });
+      entries.push({ act: "del", label: "Delete", danger: true });
+    }
+
+    for(const entry of entries){
+      const b = document.createElement("button");
+      b.type = "button";
+      b.setAttribute("role", "menuitem");
+      b.textContent = entry.label;
+      if(entry.danger) b.className = "danger";
+      b.addEventListener("click", async () => {
+        closeMenu();
+        await handleCategoryAction(categoryId, entry.act);
+      });
+      el.appendChild(b);
+    }
+
+    document.body.appendChild(el);
+
+    const r = btn.getBoundingClientRect();
+    const { offsetWidth: w, offsetHeight: h } = el;
+    el.style.left = `${Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8))}px`;
+    el.style.top  = `${r.bottom + h + 8 > window.innerHeight ? r.top - h - 6 : r.bottom + 6}px`;
+
+    btn.setAttribute("aria-expanded", "true");
+    openMenu = { el, btn };
+    document.addEventListener("keydown", onMenuKey, true);
+    el.querySelector("button")?.focus();
+  }
+
+  document.addEventListener("click", (e) => {
+    if(!openMenu) return;
+    if(openMenu.el.contains(e.target) || e.target === openMenu.btn) return;
+    closeMenu();
+  });
+  window.addEventListener("scroll", closeMenu, true);
   
   const debouncedSaveTitle = debounce(async () => {
     const st = getState();
@@ -211,13 +292,6 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     els.btnDismissConflict.addEventListener("click", () => {
       // Dismiss banner but keep pending conflict (user can Sync to see it again)
       els.conflictBanner.classList.add("hidden");
-    });
-
-    els.itemCategorySelect.addEventListener("change", async () => {
-      const st = getState();
-      st.selectedCategoryId = els.itemCategorySelect.value || "c_root";
-      setState(st);
-      render();
     });
 
     els.tabMy.addEventListener("click", () => {
@@ -362,10 +436,9 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
       </div>
 
       <div class="actions">
-        <button class="iconbtn" data-act="select" title="Select">🎯</button>
-        <button class="iconbtn" data-act="add" title="Add subcategory">➕</button>
-        ${node.id !== "c_root" ? `<button class="iconbtn" data-act="rename" title="Rename">✏️</button>` : ""}
-        ${node.id !== "c_root" ? `<button class="iconbtn" data-act="del" title="Delete">🗑️</button>` : ""}
+        <button class="iconbtn menubtn" type="button" data-menu="1"
+                aria-haspopup="menu" aria-expanded="false"
+                title="Category actions" aria-label="Actions for ${escapeHtml(node.name)}">⋯</button>
       </div>
     `;
 
@@ -392,13 +465,13 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
         render();
       });
 
-      // Action buttons
-      row.querySelectorAll("button[data-act]").forEach(btn => {
-        btn.addEventListener("click", async (e) => {
-          e.stopPropagation();
-          const act = btn.getAttribute("data-act");
-          await handleCategoryAction(node.id, act);
-        });
+      // Overflow menu. The four inline buttons it replaces took half the row
+      // and wrapped, which is what truncated the names.
+      const menuBtn = row.querySelector("[data-menu='1']");
+      menuBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if(openMenu && openMenu.btn === menuBtn){ closeMenu(); return; }
+        openCategoryMenu(menuBtn, node.id);
       });
 
       // Drag & drop (keeps your previous logic)
@@ -510,11 +583,6 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     const doc = st.activeDoc;
     if(!doc) return;
 
-    if(act === "select"){
-      st.selectedCategoryId = categoryId;
-      setState(st);
-    }
-
     if(act === "add"){
       const listId = doc.listId;
 
@@ -572,23 +640,9 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     render();
   }
 
-  function renderCategorySelect(){
-    const st = getState();
-    const doc = st.activeDoc;
-    if(!doc) return;
-
-    const root = buildTree(doc.categories);
-    const flat = flattenTree(root);
-
-    els.itemCategorySelect.innerHTML = "";
-    for(const { node, depth } of flat){
-      const opt = document.createElement("option");
-      opt.value = node.id;
-      opt.textContent = `${"—".repeat(depth)} ${node.name}`;
-      els.itemCategorySelect.appendChild(opt);
-    }
-
-    els.itemCategorySelect.value = st.selectedCategoryId || "c_root";
+  /** Indentation step, capped so a deep tree cannot run off a phone screen. */
+  function depthClass(depth){
+    return ` d${Math.min(depth, 4)}`;
   }
 
   function renderItems(){
@@ -596,85 +650,234 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     const doc = st.activeDoc;
     if(!doc) return;
 
-    const categoriesById = new Map(
-      doc.categories.filter(c => !c.deletedAt).map(c => [c.id, c.name])
-    );
+    const wanted = st.selectedCategoryId || "c_root";
+    const scope = doc.categories.find(c => c.id === wanted && !c.deletedAt);
+    const scopeId = scope ? wanted : "c_root";
+    const scopeName = scope ? scope.name : "All";
 
-    const selectedCat = st.selectedCategoryId || "c_root";
+    const { rows, total } = buildItemsOutline(doc, scopeId, {
+      mode: doc.mode,
+      hideChecked: doc.ui.hideChecked,
+      collapsed: collapsedSectionIds
+    });
 
-    const items = doc.items
-      .filter(i => !i.deletedAt)
-      .filter(i => (selectedCat ? (i.categoryId === selectedCat || selectedCat === "c_root") : true))
-      .filter(i => (doc.ui.hideChecked ? !i.checked : true))
-      .sort((a,b) => (a.checked === b.checked) ? (a.label||"").localeCompare(b.label||"") : (a.checked ? 1 : -1));
+    els.itemsTitle.textContent = scopeId === "c_root" ? "Items" : `Items — ${scopeName}`;
+    els.itemsCount.textContent = String(total);
 
+    els.itemsContainer.classList.add("outline");
     els.itemsContainer.innerHTML = "";
-    for(const it of items){
-      const catName = categoriesById.get(it.categoryId) || "—";
-      const row = document.createElement("div");
-      row.className = "item" + (it.checked ? " checked" : "");
-      row.innerHTML = `
-        <div class="item-left">
-          <input type="checkbox" ${it.checked ? "checked" : ""} />
-          <div>
-            <div class="label">${escapeHtml(it.label)}</div>
-            <div class="cat">${escapeHtml(catName)}</div>
-          </div>
-        </div>
-        <div class="row gap">
-          ${doc.mode === "edit" ? `<button class="btn btn-small" data-act="edit">Edit</button>` : ""}
-          ${doc.mode === "edit" ? `<button class="btn btn-small btn-danger" data-act="del">Delete</button>` : ""}
-        </div>
-      `;
 
-      const checkbox = row.querySelector("input[type=checkbox]");
-      checkbox.addEventListener("change", async () => {
-        toggleItemChecked(doc, it.id);
+    for(const row of rows){
+      if(row.kind === "item"){
+        els.itemsContainer.appendChild(buildItemRow(doc, row));
+        continue;
+      }
+
+      els.itemsContainer.appendChild(buildSectionRow(row));
+
+      if(addDraft && addDraft.categoryId === row.id && !row.collapsed){
+        els.itemsContainer.appendChild(buildAddRow(doc, row));
+      }
+    }
+
+    if(total === 0){
+      const empty = document.createElement("div");
+      empty.className = "items-empty muted small";
+      empty.textContent = doc.ui.hideChecked
+        ? "Everything here is checked off."
+        : `Nothing in “${scopeName}” yet.`;
+      els.itemsContainer.appendChild(empty);
+    }
+
+    // The open add row is module state, so restore focus and caret after the
+    // re-render that its own save just triggered.
+    if(addDraft){
+      const input = els.itemsContainer.querySelector("[data-add-input='1']");
+      if(input){
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+      }
+    }
+  }
+
+  function buildSectionRow(row){
+    const el = document.createElement("div");
+    el.className = "sec" + depthClass(row.depth)
+      + (row.depth === 0 ? " sec-root" : "")
+      + (row.empty ? " sec-empty" : "")
+      + (row.orphan ? " sec-orphan" : "");
+    el.dataset.section = row.id;
+    el.setAttribute("role", "button");
+    el.setAttribute("tabindex", "0");
+    el.setAttribute("aria-expanded", row.collapsed ? "false" : "true");
+
+    const twisty = document.createElement("span");
+    twisty.className = "twisty";
+    twisty.setAttribute("aria-hidden", "true");
+    twisty.textContent = row.collapsed ? "▶" : "▼";
+
+    const name = document.createElement("span");
+    name.className = "sec-name";
+    name.textContent = row.name;
+
+    const rule = document.createElement("span");
+    rule.className = "sec-rule";
+
+    const count = document.createElement("span");
+    count.className = "sec-count";
+    count.textContent = String(row.count);
+
+    el.append(twisty, name, rule, count);
+
+    // "Uncategorized" is a synthetic section, not a real category — there is
+    // nothing to add an item to.
+    if(row.id !== ORPHAN_SECTION_ID){
+      const add = document.createElement("button");
+      add.type = "button";
+      add.className = "iconbtn sec-add";
+      add.textContent = "➕";
+      add.title = `Add an item to ${row.name}`;
+      add.setAttribute("aria-label", `Add an item to ${row.name}`);
+      add.addEventListener("click", (e) => {
+        e.stopPropagation();
+        collapsedSectionIds.delete(row.id);   // or the new item lands out of sight
+        addDraft = { categoryId: row.id, text: "" };
+        render();
+      });
+      el.appendChild(add);
+    }
+
+    // A header folds and nothing else. The panel's scope *is* the selection,
+    // so selecting from here would re-scope and collapse the very outline you
+    // clicked inside.
+    const toggle = () => {
+      if(collapsedSectionIds.has(row.id)) collapsedSectionIds.delete(row.id);
+      else collapsedSectionIds.add(row.id);
+      render();
+    };
+
+    el.addEventListener("click", toggle);
+    el.addEventListener("keydown", (e) => {
+      if(e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      toggle();
+    });
+
+    return el;
+  }
+
+  function buildItemRow(doc, row){
+    const it = row.item;
+
+    const el = document.createElement("div");
+    el.className = "item" + depthClass(row.depth) + (it.checked ? " checked" : "");
+    el.innerHTML = `
+      <div class="item-left">
+        <input type="checkbox" ${it.checked ? "checked" : ""} />
+        <div class="label">${escapeHtml(it.label)}</div>
+      </div>
+      <div class="row gap">
+        ${doc.mode === "edit" ? `<button class="btn btn-small" data-act="edit">Edit</button>` : ""}
+        ${doc.mode === "edit" ? `<button class="btn btn-small btn-danger" data-act="del">Delete</button>` : ""}
+      </div>
+    `;
+
+    const checkbox = el.querySelector("input[type=checkbox]");
+    checkbox.addEventListener("change", async () => {
+      toggleItemChecked(doc, it.id);
+      await persistActiveDoc();
+      render();
+    });
+
+    const editBtn = el.querySelector("button[data-act=edit]");
+    if(editBtn){
+      editBtn.addEventListener("click", async () => {
+        const listId = doc.listId;
+
+        const newLabel = await showPrompt("Item label:", {
+          title: "Rename item", value: it.label, confirmLabel: "Save"
+        });
+        if(!newLabel) return;
+
+        const live = liveDoc(listId);
+        if(!live){ render(); return; }
+        if(!live.items.some(x => x.id === it.id && !x.deletedAt)){ render(); return; }
+
+        updateItem(live, it.id, { label: newLabel });
         await persistActiveDoc();
         render();
       });
-
-      const editBtn = row.querySelector("button[data-act=edit]");
-      if(editBtn){
-        editBtn.addEventListener("click", async () => {
-          const listId = doc.listId;
-
-          const newLabel = await showPrompt("Item label:", {
-            title: "Rename item", value: it.label, confirmLabel: "Save"
-          });
-          if(!newLabel) return;
-
-          const live = liveDoc(listId);
-          if(!live){ render(); return; }
-          if(!live.items.some(x => x.id === it.id && !x.deletedAt)){ render(); return; }
-
-          updateItem(live, it.id, { label: newLabel });
-          await persistActiveDoc();
-          render();
-        });
-      }
-
-      const delBtn = row.querySelector("button[data-act=del]");
-      if(delBtn){
-        delBtn.addEventListener("click", async () => {
-          const listId = doc.listId;
-
-          const ok = await showConfirm(`Delete "${it.label}"?`, {
-            title: "Delete item", confirmLabel: "Delete", danger: true
-          });
-          if(!ok) return;
-
-          const live = liveDoc(listId);
-          if(!live){ render(); return; }
-
-          deleteItem(live, it.id);
-          await persistActiveDoc();
-          render();
-        });
-      }
-
-      els.itemsContainer.appendChild(row);
     }
+
+    const delBtn = el.querySelector("button[data-act=del]");
+    if(delBtn){
+      delBtn.addEventListener("click", async () => {
+        const listId = doc.listId;
+
+        const ok = await showConfirm(`Delete "${it.label}"?`, {
+          title: "Delete item", confirmLabel: "Delete", danger: true
+        });
+        if(!ok) return;
+
+        const live = liveDoc(listId);
+        if(!live){ render(); return; }
+
+        deleteItem(live, it.id);
+        await persistActiveDoc();
+        render();
+      });
+    }
+
+    return el;
+  }
+
+  /**
+   * The inline row under a section header. Enter files the item and leaves the
+   * row open, cleared — building a list means typing several items into one
+   * aisle without reaching for the mouse between each.
+   */
+  function buildAddRow(doc, row){
+    const el = document.createElement("div");
+    el.className = "inline-add" + depthClass(row.depth + 1);
+
+    const input = document.createElement("input");
+    input.className = "input";
+    input.dataset.addInput = "1";
+    input.value = addDraft.text;
+    input.placeholder = `New item in ${row.name}…`;
+    input.setAttribute("aria-label", `New item in ${row.name}`);
+
+    const hint = document.createElement("span");
+    hint.className = "inline-add-hint";
+    hint.textContent = "↵ add · esc close";
+
+    input.addEventListener("input", () => { addDraft.text = input.value; });
+
+    input.addEventListener("keydown", async (e) => {
+      if(e.key === "Escape"){
+        e.preventDefault();
+        addDraft = null;
+        render();
+        return;
+      }
+      if(e.key !== "Enter") return;
+
+      e.preventDefault();
+      const label = input.value.trim();
+      if(!label) return;
+
+      const listId = doc.listId;
+      addItem(doc, { label, categoryId: row.id });
+      addDraft.text = "";
+      await persistActiveDoc();
+
+      // The poller can swap the active doc while an add row is open.
+      if(!liveDoc(listId)){ addDraft = null; }
+      render();
+    });
+
+    el.append(input, hint);
+    return el;
   }
 
   function renderConflict(){
@@ -754,7 +957,6 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     if(!st.activeDoc) return;
 
     renderCategoryTree();
-    renderCategorySelect();
     renderItems();
   }
 
