@@ -42,7 +42,7 @@ function buildConflictBody(summary){
   return body;
 }
 
-export function createUI({ getState, setState, persistActiveDoc, onSync, onImport, onExport, onImportFile, onResolveConflict }){
+export function createUI({ getState, setState, persistActiveDoc, onSync, onImport, onExport, onShare, onImportFile, onResolveConflict }){
   const els = {
 
     tabMy: document.getElementById("tabMy"),
@@ -250,6 +250,12 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
       const st = getState();
       if(!st.activeDoc) return;
       onExport?.();
+    });
+
+    els.btnShare.addEventListener("click", async () => {
+      const st = getState();
+      if(!st.activeDoc) return;
+      await onShare?.();
     });
 
     els.btnDeleteList.addEventListener("click", async () => {

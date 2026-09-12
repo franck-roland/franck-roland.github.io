@@ -1,6 +1,6 @@
-# Browser verification for the modal layer, list import/export, and the items outline
+# Browser verification for the modal layer, list import/export, the items outline, and sharing
 
-55 assertions run against a real Chrome. The pure logic is tested separately and
+64 assertions run against a real Chrome. The pure logic is tested separately and
 needs nothing from this directory:
 
 ```bash
@@ -47,6 +47,10 @@ HARNESS_URL=http://localhost:8765/index.html \
 # 8. The grouped items outline (22 assertions)
 HARNESS_URL=http://localhost:8765/index.html \
   node <repo>/docs/superpowers/verification/itemsview.mjs
+
+# 9. The Share button (5 assertions)
+HARNESS_URL=http://localhost:8765/index.html \
+  node <repo>/docs/superpowers/verification/share.mjs
 ```
 
 Node resolves bare imports from the script's own location, not the working
@@ -66,6 +70,7 @@ machine — rather than downloading a Playwright build.
 | `conflict.mjs` | The refactored conflict dialog, driven through the real `createUI()`: the banner shows, Resolve opens a dialog carrying the diff summary, the three strategies are offered with Auto-merge primary, dismissal resolves nothing, and each choice reaches `onResolveConflict`. |
 | `importflow.mjs` | The import/export UI. Serves stub `db.js`, `driveSync.js` and `driveAuth.js` modules via Playwright route interception, so the app boots with a known list and no network. Covers: malformed and non-list files refused; the Replace / Create new / Cancel dialog; the reset-checked option; a new import getting its own Drive file rather than the exporter's; Replace asking a second time, keeping the `listId` and Drive binding, and tombstoning the old items; a shared list never being offered as a replace target; and the export filename, with assertions that no `sync` block or Drive file id reaches the file. |
 | `itemsview.mjs` | The grouped items outline, driven through the real `createUI()` the way `staleness.mjs` is. Covers: selecting a category shows its whole subtree; the panel header's scope and total; empty sections hidden while shopping and shown while editing; section folding, its independence from the tree's own folding, and that a fold does not change the total; the inline add row filing into its own subcategory, clearing but staying open on Enter, surviving a re-render, closing on Escape, and unfolding a folded section; the `liveDoc()` guard on the add handler; the `Uncategorized` section for items whose category was deleted elsewhere; the `⋯` menu's entries, its reduced entries on the root, Rename and Delete reaching the modal layer, and Escape restoring focus; that a realistic category name is no longer clipped and the action column no longer eats half the row; and that `Hide checked` shrinks the section counts. **Folding state is module-level in `ui.js` by design, so each check reloads the page** — a fresh `createUI()` over the cached module would inherit the previous check's folds. |
+| `share.mjs` | The Share button, driven through the real `createUI()` the way `conflict.mjs` is. Covers: the button is enabled while signed in and disabled while signed out, a click reaches `onShare` exactly once per click, and a disabled button reaches nothing. Guards the regression where `#btnShare` was queried and had its `disabled` state maintained but never had a click listener bound — an inert button with no error to show for it. |
 | `staleness.mjs` | The `liveDoc()` guard in `ui.js`. Simulates the 10-second poller swapping `state.activeDoc` while a confirm is open, and asserts the change lands on the live document rather than the detached one — and that the handler bails without persisting when the user has switched lists. |
 
 `harness.html` is a fixture for `check.mjs` only. It must be copied into
