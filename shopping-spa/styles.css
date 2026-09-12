@@ -250,6 +250,7 @@ body{
 
 .row{ display:flex; align-items:center; }
 .gap{ gap:10px; }
+.wrap{ flex-wrap:wrap; }
 
 .input,.select{
   width:100%;

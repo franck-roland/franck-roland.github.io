@@ -5,7 +5,8 @@ import { DriveAuth } from "./driveAuth.js";
 import { DriveSync } from "./driveSync.js";
 import { extractDriveFileId } from "./util.js";
 import { isFocusWanted, setFocusWanted } from "./focus.js";
-import { showAlert, showPrompt } from "./modal.js";
+import { showAlert, showChoice, showConfirm, showPrompt } from "./modal.js";
+import { serializeDoc, parseImport, replaceDocContents, exportFilename } from "./transfer.js";
 
 const els = {
   btnSignIn: document.getElementById("btnSignIn"),
@@ -20,6 +21,7 @@ const els = {
   btnToggleSidebar: document.getElementById("btnToggleSidebar"),
   sidebar: document.querySelector(".sidebar"),
   sidebarBackdrop: document.getElementById("sidebarBackdrop"),
+  importFileInput: document.getElementById("importFileInput"),
 };
 
 let state = {
@@ -160,6 +162,141 @@ async function importShared(){
   state.activeTab = "shared";
   state.activeListId = doc.listId;
   state.activeDoc = doc;
+  setState(state);
+  setSyncStatus("Imported ✅");
+}
+
+function exportActiveList(){
+  if(!state.activeDoc) return;
+
+  const blob = new Blob([JSON.stringify(serializeDoc(state.activeDoc), null, 2)],
+    { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = exportFilename(state.activeDoc);
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  // Revoking immediately can cancel the download in some browsers.
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  setSyncStatus("Exported ✅");
+}
+
+/** The import dialog's body: what is in the file, and the reset-checked option. */
+function buildImportBody(imported, target){
+  const wrap = document.createElement("div");
+
+  const counts = document.createElement("div");
+  const cats = imported.categories.filter(c => c.id !== "c_root").length;
+  counts.textContent =
+    `"${imported.title}" — ${imported.items.length} item(s), ${cats} categor${cats === 1 ? "y" : "ies"}.`;
+  wrap.appendChild(counts);
+
+  if(!target){
+    const why = document.createElement("div");
+    why.className = "muted small";
+    why.textContent = state.activeDoc
+      ? "A shared list cannot be replaced: it lives in someone else's Drive."
+      : "Open one of your lists first if you want to replace it instead.";
+    wrap.appendChild(why);
+  }
+
+  if(imported.items.some(i => i.checked)){
+    const label = document.createElement("label");
+    label.className = "checkbox";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.id = "importResetChecked";
+    const span = document.createElement("span");
+    span.textContent = "Start with all items unchecked";
+    label.append(cb, span);
+    wrap.appendChild(label);
+  }
+
+  return wrap;
+}
+
+async function importFromFile(file){
+  let imported;
+  try{
+    imported = parseImport(await file.text());
+  }catch(e){
+    await showAlert(e.message, { title: "Import failed" });
+    return;
+  }
+
+  // Only a list of mine can be replaced: a shared one points at someone else's
+  // Drive file, and replacing it would push over their data.
+  const target = (state.activeDoc && (state.activeDoc.origin || "my") === "my")
+    ? state.activeDoc
+    : null;
+
+  const buttons = [{ label: "Cancel", value: null, kind: "ghost" }];
+  if(target){
+    const live = target.items.filter(i => !i.deletedAt).length;
+    buttons.push({ label: `Replace "${target.title}" (${live})`, value: "replace", kind: "danger" });
+  }
+  buttons.push({ label: "Create a new list", value: "new", kind: "primary" });
+
+  const body = buildImportBody(imported, target);
+  const choice = await showChoice({ title: "Import list", body, buttons });
+  if(!choice) return;
+
+  // Read the checkbox before the dialog's node goes away.
+  if(body.querySelector("#importResetChecked")?.checked){
+    for(const i of imported.items) i.checked = false;
+  }
+
+  if(choice === "replace"){
+    await replaceActiveList(target, imported);
+  }else{
+    await createListFromImport(imported);
+  }
+}
+
+async function replaceActiveList(target, imported){
+  const live = target.items.filter(i => !i.deletedAt).length;
+  const ok = await showConfirm(
+    `Replace the contents of "${target.title}" (${live} item(s)) with "${imported.title}" ` +
+    `(${imported.items.length} item(s))?\n\n` +
+    `This cannot be undone, and it reaches every device synced to this list.`,
+    { title: "Replace list", confirmLabel: "Replace", danger: true }
+  );
+  if(!ok) return;
+
+  // The poller may have swapped the active doc while the dialogs were open.
+  const listId = target.listId;
+  const current = state.lists.find(l => l.listId === listId) || state.activeDoc;
+  if(!current || current.listId !== listId){
+    await showAlert("That list is no longer open. Nothing was changed.", { title: "Import cancelled" });
+    return;
+  }
+
+  setSyncStatus("Replacing list…");
+  replaceDocContents(current, imported);
+  state.activeDoc = current;
+  await persistDoc(current);
+  await loadAll();
+  setState(state);
+  setSyncStatus("Replaced ✅");
+}
+
+async function createListFromImport(doc){
+  setSyncStatus("Creating list on Drive…");
+
+  const folderId = state.shoppingFolderId || await DriveSync.ensureShoppingFolder();
+  state.shoppingFolderId = folderId;
+
+  const created = await DriveSync.ensureMyListFile(doc, folderId);
+  await persistDoc(created);
+
+  await loadAll();
+  state.activeTab = "my";
+  state.activeListId = created.listId;
+  state.activeDoc = created;
   setState(state);
   setSyncStatus("Imported ✅");
 }
@@ -316,7 +453,24 @@ async function boot(){
     persistActiveDoc,
     onSync: syncActive,
     onImport: importShared,
+    onExport: exportActiveList,
+    onImportFile: () => els.importFileInput?.click(),
     onResolveConflict: resolveConflict
+  });
+
+  els.importFileInput?.addEventListener("change", async () => {
+    const file = els.importFileInput.files?.[0];
+    // Reset first, so picking the same file again still fires a change event.
+    els.importFileInput.value = "";
+    if(!file) return;
+
+    try{
+      await importFromFile(file);
+    }catch(e){
+      console.error(e);
+      await showAlert(e.message, { title: "Import failed" });
+    }
+    ui.render();
   });
 
   // Top bar still works, but gate is mandatory anyway

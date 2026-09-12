@@ -33,13 +33,14 @@ function buildConflictBody(summary){
   return body;
 }
 
-export function createUI({ getState, setState, persistActiveDoc, onSync, onImport, onResolveConflict }){
+export function createUI({ getState, setState, persistActiveDoc, onSync, onImport, onExport, onImportFile, onResolveConflict }){
   const els = {
 
     tabMy: document.getElementById("tabMy"),
     tabShared: document.getElementById("tabShared"),
     btnNewList: document.getElementById("btnNewList"),
-    btnImport: document.getElementById("btnImport"),
+    btnImportShared: document.getElementById("btnImportShared"),
+    btnImportFile: document.getElementById("btnImportFile"),
 
     listsContainer: document.getElementById("listsContainer"),
     emptyState: document.getElementById("emptyState"),
@@ -61,6 +62,7 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
 
     btnDeleteList: document.getElementById("btnDeleteList"),
     btnShare: document.getElementById("btnShare"),
+    btnExport: document.getElementById("btnExport"),
     btnFocus: document.getElementById("btnFocus"),
     driveInfo: document.getElementById("driveInfo"),
 
@@ -163,6 +165,12 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
       await quickAddItem();
     });
 
+    els.btnExport.addEventListener("click", () => {
+      const st = getState();
+      if(!st.activeDoc) return;
+      onExport?.();
+    });
+
     els.btnDeleteList.addEventListener("click", async () => {
       const st = getState();
       if(!st.activeDoc) return;
@@ -232,10 +240,15 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
         render();
       });
 
-      els.btnImport.addEventListener("click", async () => {
+      els.btnImportShared.addEventListener("click", async () => {
         const st = getState();
         await st.actions.importShared();
         render();
+      });
+
+      els.btnImportFile.addEventListener("click", () => {
+        // Opens the file picker; app.js re-renders once the file is handled.
+        onImportFile?.();
       });
 
   }
@@ -724,9 +737,11 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     els.tabMy.classList.toggle("active", tab === "my");
     els.tabShared.classList.toggle("active", tab === "shared");
 
-    // In My tab: show New, hide Import; in Shared tab: show Import, hide New
+    // My tab creates lists (from scratch or from a file); Shared adopts one
+    // from a Drive link.
     els.btnNewList.style.display = (tab === "my") ? "" : "none";
-    els.btnImport.style.display = (tab === "shared") ? "" : "none";
+    els.btnImportFile.style.display = (tab === "my") ? "" : "none";
+    els.btnImportShared.style.display = (tab === "shared") ? "" : "none";
   }
 
   function render(){

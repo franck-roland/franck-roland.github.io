@@ -41,10 +41,12 @@
         <button id="tabShared" class="tab">Shared</button>
       </div>
 
-      <div class="row gap">
+      <div class="row gap wrap">
         <button id="btnNewList" class="btn btn-primary">+ New</button>
-        <button id="btnImport" class="btn">Import</button>
+        <button id="btnImportShared" class="btn" title="Add a list someone shared with you, from a Drive link">+ Shared</button>
+        <button id="btnImportFile" class="btn" title="Create a list from an exported .json file">Import file</button>
       </div>
+      <input id="importFileInput" type="file" accept="application/json,.json" hidden />
 
       <div id="listsContainer" class="lists"></div>
 
@@ -78,6 +80,7 @@
             <button id="btnFocus" class="btn btn-focus" type="button" aria-pressed="false" title="Focus mode">
               <span class="focus-icon" aria-hidden="true">⤢</span><span class="focus-label">Focus</span>
             </button>
+            <button id="btnExport" class="btn" title="Download this list as a .json file">Export</button>
             <button id="btnShare" class="btn" disabled>Share</button>
             <button id="btnDeleteList" class="btn btn-danger">Delete</button>
           </div>
