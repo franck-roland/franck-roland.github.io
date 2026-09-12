@@ -128,31 +128,7 @@
     </section>
   </main>
 
-  <div id="modalOverlay" class="modal-overlay hidden">
-    <div class="modal">
-      <div class="modal-header">
-        <div class="modal-title">Resolve conflict</div>
-        <button id="btnModalClose" class="iconbtn">✕</button>
-      </div>
-
-      <div class="modal-body">
-        <div class="muted small">
-          Choose how to resolve differences between your local changes and the remote version on Drive.
-        </div>
-
-        <div class="diffbox">
-          <div class="diff-title">Summary</div>
-          <pre id="conflictDiff" class="diff-pre"></pre>
-        </div>
-      </div>
-
-      <div class="modal-footer row gap">
-        <button id="btnConflictMerge" class="btn btn-primary">Auto-merge</button>
-        <button id="btnConflictMine" class="btn">Keep mine</button>
-        <button id="btnConflictRemote" class="btn">Keep remote</button>
-      </div>
-    </div>
-  </div>
+  <!-- Dialogs are built at run time by js/modal.js. -->
 
   <!-- Google Identity Services (client-side OAuth token) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>

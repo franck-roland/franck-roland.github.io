@@ -5,6 +5,7 @@ import { DriveAuth } from "./driveAuth.js";
 import { DriveSync } from "./driveSync.js";
 import { extractDriveFileId } from "./util.js";
 import { isFocusWanted, setFocusWanted } from "./focus.js";
+import { showAlert, showPrompt } from "./modal.js";
 
 const els = {
   btnSignIn: document.getElementById("btnSignIn"),
@@ -106,10 +107,11 @@ async function createList(){
   // Only in "my" tab
   if(!state.auth.isSignedIn) return;
 
-  const title = prompt("List title?", "New list");
+  const title = await showPrompt("List title?", { title: "New list", value: "New list", confirmLabel: "Create" });
   if(title === null) return;
 
-  let doc = createNewListDoc(title.trim() || "New list");
+  // showPrompt already trims and returns null for an empty value.
+  let doc = createNewListDoc(title);
   doc.origin = "my";
 
   // Ensure file exists in .shopping on creation (so it's properly organized)
@@ -130,15 +132,19 @@ async function createList(){
 
 async function importShared(){
   if(!state.auth.isSignedIn){
-    alert("Sign in first.");
+    await showAlert("Sign in first.", { title: "Not signed in" });
     return;
   }
 
-  const input = prompt("Paste a Google Drive share link or fileId:");
+  const input = await showPrompt("Paste a Google Drive share link or fileId:", {
+    title: "Import a shared list",
+    placeholder: "https://drive.google.com/file/d/…",
+    confirmLabel: "Import"
+  });
   if(input === null) return;
   const fileId = extractDriveFileId(input);
   if(!fileId){
-    alert("Could not extract a Drive fileId.");
+    await showAlert("Could not extract a Drive fileId from that link.", { title: "Import failed" });
     return;
   }
 
@@ -321,7 +327,7 @@ async function boot(){
       await initialSyncFromDrive();
       ui.render();
     }catch(e){
-      alert("Sign-in failed: " + e.message);
+      await showAlert(e.message, { title: "Sign-in failed" });
     }
   });
 
@@ -409,7 +415,12 @@ async function boot(){
   startPolling(ui);
 }
 
-boot().catch(e => {
+boot().catch(async e => {
   console.error(e);
-  alert("Fatal error: " + e.message);
+  try{
+    await showAlert(e.message, { title: "Fatal error" });
+  }catch(_){
+    // The page is too broken to render a dialog; fall back to the browser's.
+    alert("Fatal error: " + e.message);
+  }
 });

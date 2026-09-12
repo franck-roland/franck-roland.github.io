@@ -1,0 +1,22 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="stylesheet" href="./styles.css">
+<body>
+<button id="opener">opener</button>
+<script type="module">
+  import { showAlert, showConfirm, showPrompt, showChoice } from "./js/modal.js";
+  window.showAlert = showAlert;
+  window.showConfirm = showConfirm;
+  window.showPrompt = showPrompt;
+  window.showChoice = showChoice;
+
+  // Mirrors app.js: a bubble-phase Escape handler that must NOT fire
+  // while a modal is open.
+  window.__appEscapeFired = 0;
+  document.addEventListener("keydown", (e) => {
+    if(e.key === "Escape") window.__appEscapeFired++;
+  });
+
+  window.__ready = true;
+</script>
+</body>
