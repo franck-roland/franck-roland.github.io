@@ -7,6 +7,7 @@ import { extractDriveFileId } from "./util.js";
 import { isFocusWanted, setFocusWanted } from "./focus.js";
 import { showAlert, showChoice, showConfirm, showPrompt } from "./modal.js";
 import { serializeDoc, parseImport, replaceDocContents, exportFilename } from "./transfer.js";
+import { Connectivity } from "./connectivity.js";
 
 const els = {
   btnSignIn: document.getElementById("btnSignIn"),
@@ -16,6 +17,7 @@ const els = {
 
   authGate: document.getElementById("authGate"),
   btnSignInGate: document.getElementById("btnSignInGate"),
+  btnContinueOffline: document.getElementById("btnContinueOffline"),
   authGateStatus: document.getElementById("authGateStatus"),
   
   btnToggleSidebar: document.getElementById("btnToggleSidebar"),
@@ -41,8 +43,20 @@ let state = {
   actions: null
 };
 
+// Set when you deliberately choose offline mode at the gate. It is separate
+// from Connectivity's verdict because it must not evaporate the moment a bar
+// of signal comes back — you leave this mode by signing in, not by walking
+// past a window.
+let offlineModeChosen = false;
+
 function setState(next){ state = next; }
-function getState(){ return state; }
+
+// Derived on read rather than stored: a cached copy and Connectivity's verdict
+// would drift apart, and the banner and the disabled buttons would disagree.
+function getState(){
+  state.offline = offlineModeChosen || Connectivity.isOffline();
+  return state;
+}
 
 async function loadAll(){
   const lists = (await DB.getAllLists()).map(normalizeDoc);
@@ -81,19 +95,26 @@ function showAuthGate(show, msg=""){
 function refreshAuthUI(){
   const signedIn = DriveAuth.isSignedIn();
   state.auth.isSignedIn = signedIn;
+  const offline = getState().offline;
 
-  // Top bar buttons still exist, but sign-in is mandatory so gate overrides
   els.btnSignIn.disabled = signedIn;
   els.btnSignOut.disabled = !signedIn;
-  els.btnSync.disabled = !signedIn || !state.activeDoc;
+  els.btnSync.disabled = !signedIn || !state.activeDoc || offline;
 
-  if(!signedIn){
-    showAuthGate(true, "Please sign in to load your lists from Drive.");
-    setSyncStatus("Not signed in");
-  }else{
+  if(signedIn || offlineModeChosen){
     showAuthGate(false);
-    setSyncStatus("Signed in");
+    setSyncStatus(signedIn ? (offline ? "Offline" : "Signed in") : "Offline — saved lists only");
+    return;
   }
+
+  // Offering to continue offline with nothing saved would open an empty app
+  // and look broken, so the button only appears when there is something to show.
+  const hasLocal = state.lists.length > 0;
+  els.btnContinueOffline.hidden = !hasLocal;
+  showAuthGate(true, hasLocal
+    ? "Sign in to sync, or continue offline with the lists saved on this device."
+    : "No lists are saved on this device yet, so signing in is the only way in.");
+  setSyncStatus("Not signed in");
 }
 
 async function selectList(listId){
@@ -565,6 +586,7 @@ async function boot(){
   els.btnSignIn.addEventListener("click", async () => {
     try{
       await DriveAuth.signInInteractive();
+      offlineModeChosen = false;
       refreshAuthUI();
       await initialSyncFromDrive();
       ui.render();
@@ -588,12 +610,19 @@ async function boot(){
   els.btnSignInGate.addEventListener("click", async () => {
     try{
       await DriveAuth.signInInteractive();
+      offlineModeChosen = false;
       refreshAuthUI();
       await initialSyncFromDrive();
       ui.render();
     }catch(e){
       showAuthGate(true, "Sign-in failed: " + e.message);
     }
+  });
+
+  els.btnContinueOffline.addEventListener("click", () => {
+    offlineModeChosen = true;
+    refreshAuthUI();
+    ui.render();
   });
 
   refreshAuthUI();

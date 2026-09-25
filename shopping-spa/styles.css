@@ -337,6 +337,19 @@ body{
 }
 .conflict-title{ font-weight:750; }
 
+.offline{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  border:1px solid rgba(245,158,11,.45);
+  background:rgba(245,158,11,.10);
+  border-radius:16px;
+  padding:12px;
+  margin-bottom:12px;
+}
+.offline-title{ font-weight:750; }
+
 .modal-overlay{
   position:fixed;
   inset:0;

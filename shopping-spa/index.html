@@ -30,6 +30,7 @@
       <div class="auth-title">Sign in required</div>
       <div class="auth-subtitle">To use this app, sign in with Google to sync lists from Drive.</div>
       <button id="btnSignInGate" class="btn btn-primary">Sign in with Google</button>
+      <button id="btnContinueOffline" class="btn" hidden>Continue offline with saved lists</button>
       <div id="authGateStatus" class="muted small"></div>
     </div>
   </div>
@@ -60,6 +61,13 @@
     </aside>
     <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
     <section class="content">
+      <div id="offlineBanner" class="offline hidden">
+        <div>
+          <div class="offline-title">Offline</div>
+          <div class="muted small">You can tick items off. Editing and syncing resume when you are back online.</div>
+        </div>
+      </div>
+
       <div id="emptyState" class="empty">
         <h2>No list selected</h2>
         <p>Create a list on the left, or select an existing one.</p>
