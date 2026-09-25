@@ -81,6 +81,8 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     conflictSubtitle: document.getElementById("conflictSubtitle"),
     btnResolveConflict: document.getElementById("btnResolveConflict"),
     btnDismissConflict: document.getElementById("btnDismissConflict"),
+
+    offlineBanner: document.getElementById("offlineBanner"),
   };
 
   // Dialogs are async, unlike the native prompt/confirm they replaced. The 10s
@@ -92,6 +94,15 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     const doc = getState().activeDoc;
     if(!doc || doc.listId !== listId) return null;
     return doc;
+  }
+
+  // The stored mode is what you chose; the effective mode is what we can
+  // honour right now. Offline pins to shopping *without* touching doc.mode —
+  // writing to it would mark the doc dirty and push a mode change you never
+  // asked for to every other device.
+  function effectiveMode(doc){
+    if(getState().offline) return "shopping";
+    return doc.mode || "shopping";
   }
 
   let dragCategoryId = null;
@@ -422,6 +433,8 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
       const row = document.createElement("div");
       row.className = "node";
 
+      const ro = getState().offline;
+
       row.innerHTML = `
       <div class="left">
         <div class="indent" style="margin-left:${depth*14}px"></div>
@@ -433,7 +446,7 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
           : `<span style="width:22px; display:inline-block;"></span>`
       }
 
-        ${node.id !== "c_root"
+        ${node.id !== "c_root" && !ro
           ? `<span class="handle" title="Drag to move" draggable="true" data-handle="1">⋮⋮</span>`
           : `<span style="width:34px; display:inline-block;"></span>`
       }
@@ -442,9 +455,9 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
       </div>
 
       <div class="actions">
-        <button class="iconbtn menubtn" type="button" data-menu="1"
+        ${ro ? "" : `<button class="iconbtn menubtn" type="button" data-menu="1"
                 aria-haspopup="menu" aria-expanded="false"
-                title="Category actions" aria-label="Actions for ${escapeHtml(node.name)}">⋯</button>
+                title="Category actions" aria-label="Actions for ${escapeHtml(node.name)}">⋯</button>`}
       </div>
     `;
 
@@ -474,7 +487,7 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
       // Overflow menu. The four inline buttons it replaces took half the row
       // and wrapped, which is what truncated the names.
       const menuBtn = row.querySelector("[data-menu='1']");
-      menuBtn.addEventListener("click", (e) => {
+      menuBtn?.addEventListener("click", (e) => {
         e.stopPropagation();
         if(openMenu && openMenu.btn === menuBtn){ closeMenu(); return; }
         openCategoryMenu(menuBtn, node.id);
@@ -736,8 +749,8 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     el.append(twisty, name, rule, count);
 
     // "Uncategorized" is a synthetic section, not a real category — there is
-    // nothing to add an item to.
-    if(row.id !== ORPHAN_SECTION_ID){
+    // nothing to add an item to. Offline there is nothing to add anywhere.
+    if(row.id !== ORPHAN_SECTION_ID && !getState().offline){
       const add = document.createElement("button");
       add.type = "button";
       add.className = "iconbtn sec-add";
@@ -783,8 +796,8 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
         <div class="label">${escapeHtml(it.label)}</div>
       </div>
       <div class="row gap">
-        ${doc.mode === "edit" ? `<button class="btn btn-small" data-act="edit">Edit</button>` : ""}
-        ${doc.mode === "edit" ? `<button class="btn btn-small btn-danger" data-act="del">Delete</button>` : ""}
+        ${effectiveMode(doc) === "edit" ? `<button class="btn btn-small" data-act="edit">Edit</button>` : ""}
+        ${effectiveMode(doc) === "edit" ? `<button class="btn btn-small btn-danger" data-act="del">Delete</button>` : ""}
       </div>
     `;
 
@@ -920,7 +933,7 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
 
     const footerbar = document.querySelector(".footerbar");
     if(footerbar){
-      footerbar.classList.toggle("hidden", doc.mode === "shopping");
+      footerbar.classList.toggle("hidden", effectiveMode(doc) === "shopping");
     }
     
     els.emptyState.classList.add("hidden");
@@ -929,11 +942,10 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     els.listTitle.value = doc.title || "";
     els.toggleHideChecked.checked = !!doc.ui.hideChecked;
 
-    els.modeEdit.classList.toggle("active", doc.mode === "edit");
-    els.modeShop.classList.toggle("active", doc.mode === "shopping");
+    els.modeEdit.classList.toggle("active", effectiveMode(doc) === "edit");
+    els.modeShop.classList.toggle("active", effectiveMode(doc) === "shopping");
 
     const signedIn = st.auth.isSignedIn;
-    els.btnShare.disabled = !signedIn;
 
     els.driveInfo.textContent = signedIn
       ? (doc.sync.driveFileId ? `Drive file: ${doc.sync.driveFileId} • ${doc.dirty ? "Unsynced" : "Synced"}` : "Not yet created on Drive")
@@ -953,7 +965,32 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     els.btnImportShared.style.display = (tab === "shared") ? "" : "none";
   }
 
+  // Disabled, not hidden. A greyed-out control says "this exists and is
+  // temporarily unavailable"; a control that has vanished reads as a bug, and
+  // sends you hunting for a feature you think you have lost.
+  function applyReadOnly(){
+    const st = getState();
+    const ro = !!st.offline;
+
+    els.btnNewList.disabled = ro;
+    els.btnImportShared.disabled = ro;
+    els.btnImportFile.disabled = ro;
+    els.btnAddCategory.disabled = ro;
+    els.btnAddItem.disabled = ro;
+    els.btnQuickAdd.disabled = ro;
+    els.newItemInput.disabled = ro;
+    els.btnDeleteList.disabled = ro;
+    els.modeEdit.disabled = ro;
+    els.listTitle.readOnly = ro;
+
+    // Sharing needs Drive whether or not you are offline.
+    els.btnShare.disabled = ro || !st.auth.isSignedIn;
+
+    els.offlineBanner.classList.toggle("hidden", !ro);
+  }
+
   function render(){
+    applyReadOnly();
     renderTabButtons();
     renderLists();
     renderHeader();
