@@ -6,6 +6,19 @@ const EXP_KEY = "drive_access_token_exp";
 
 let tokenClient = null;
 
+/**
+ * Should a request go ahead with this token? Pure, so it can be tested without
+ * a browser — the IO (sessionStorage, the GIS popup) stays in ensureToken.
+ *
+ * There is deliberately no "reauth" outcome. Re-authentication needs a Google
+ * popup, and a popup that opens because a background poller ticked is exactly
+ * the thing this app must never do while you are standing in a shop.
+ */
+export function tokenDecision(token, nowMs, skewMs = 30_000){
+  if(token && token.expires_at > nowMs + skewMs) return "use";
+  return "none";
+}
+
 export const DriveAuth = {
   async init(){
     // Restore token from session if present
@@ -66,10 +79,13 @@ export const DriveAuth = {
 
   async ensureToken(){
     const token = getToken();
-    if(token && token.expires_at > Date.now() + 30_000) return token;
+    if(tokenDecision(token, Date.now()) === "use") return token;
 
-    // Re-auth interactively (no server; silent refresh is limited)
-    return await DriveAuth.signInInteractive();
+    // No silent refresh is possible without a server, and prompting here would
+    // open an OAuth popup from whatever happened to call us — including the
+    // ten-second poller. Callers treat null as "not signed in right now"; the
+    // sign-in buttons are the only interactive path.
+    return null;
   }
 };
 

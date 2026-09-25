@@ -1,14 +1,35 @@
 import { DriveAuth } from "./driveAuth.js";
+import { Connectivity, OfflineError } from "./connectivity.js";
 
 const DRIVE_BASE = "https://www.googleapis.com/drive/v3";
 const UPLOAD_BASE = "https://www.googleapis.com/upload/drive/v3";
 
+// Long enough for a slow-but-real connection, short enough that a dead one
+// does not hold the UI for half a minute. A shop's one-bar signal keeps a
+// socket open indefinitely, so without this the app never learns it is stuck.
+const TIMEOUT_MS = 8000;
+
 async function authedFetch(url, options = {}){
   const token = await DriveAuth.ensureToken();
+  if(!token) throw new OfflineError("Not signed in");
+
   const headers = new Headers(options.headers || {});
   headers.set("Authorization", `Bearer ${token.access_token}`);
 
-  return fetch(url, { ...options, headers });
+  let res;
+  try{
+    res = await fetch(url, { ...options, headers, signal: AbortSignal.timeout(TIMEOUT_MS) });
+  }catch(err){
+    // No response at all: DNS, socket, or our own timeout. This is the only
+    // kind of failure that proves anything about reachability.
+    Connectivity.noteFailure(err);
+    throw new OfflineError("Drive is unreachable");
+  }
+
+  // Any HTTP status means the network works. The status itself is the caller's
+  // problem, and they already handle it.
+  Connectivity.noteSuccess();
+  return res;
 }
 
 export const DriveApi = {
