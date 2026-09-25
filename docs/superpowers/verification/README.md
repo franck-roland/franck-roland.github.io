@@ -1,16 +1,25 @@
-# Browser verification for the modal layer, list import/export, the items outline, and sharing
+# Browser verification for the modal layer, list import/export, the items outline, sharing, and offline shopping mode
 
-64 assertions run against a real Chrome. The pure logic is tested separately and
+71 assertions run against a real Chrome. The pure logic is tested separately and
 needs nothing from this directory:
 
 ```bash
-cd <repo>/shopping-spa && node --test js/transfer.test.mjs js/tree.test.mjs   # 54 assertions
+cd <repo>/shopping-spa && node --test js/transfer.test.mjs js/tree.test.mjs js/connectivity.test.mjs js/driveAuth.test.mjs
 ```
 
 **Nothing here is part of the site** —
 `shopping-spa/` keeps zero runtime dependencies and no build step. Playwright is
 installed in a scratch directory outside the repository, so these scripts are
 inert unless you deliberately run them.
+
+> **The app registers a service worker.** Every script in this directory opens
+> its context with `serviceWorkers: "block"` so cached files cannot leak
+> between runs — `offline.mjs` deliberately allows one in the single check that
+> tests the cache itself. If you add a script here, block it too.
+>
+> **After changing any file under `shopping-spa/`, bump `VERSION` in
+> `shopping-spa/sw.js`.** The cache is served ahead of the network, so a deploy
+> without a bump keeps serving the old bundle and looks like it did nothing.
 
 ## Running them
 
@@ -51,6 +60,10 @@ HARNESS_URL=http://localhost:8765/index.html \
 # 9. The Share button (5 assertions)
 HARNESS_URL=http://localhost:8765/index.html \
   node <repo>/docs/superpowers/verification/share.mjs
+
+# 10. Offline shopping mode (7 assertions)
+HARNESS_URL=http://localhost:8765/index.html \
+  node <repo>/docs/superpowers/verification/offline.mjs
 ```
 
 Node resolves bare imports from the script's own location, not the working
@@ -72,6 +85,7 @@ machine — rather than downloading a Playwright build.
 | `itemsview.mjs` | The grouped items outline, driven through the real `createUI()` the way `staleness.mjs` is. Covers: selecting a category shows its whole subtree; the panel header's scope and total; empty sections hidden while shopping and shown while editing; section folding, its independence from the tree's own folding, and that a fold does not change the total; the inline add row filing into its own subcategory, clearing but staying open on Enter, surviving a re-render, closing on Escape, and unfolding a folded section; the `liveDoc()` guard on the add handler; the `Uncategorized` section for items whose category was deleted elsewhere; the `⋯` menu's entries, its reduced entries on the root, Rename and Delete reaching the modal layer, and Escape restoring focus; that a realistic category name is no longer clipped and the action column no longer eats half the row; and that `Hide checked` shrinks the section counts. **Folding state is module-level in `ui.js` by design, so each check reloads the page** — a fresh `createUI()` over the cached module would inherit the previous check's folds. |
 | `share.mjs` | The Share button, driven through the real `createUI()` the way `conflict.mjs` is. Covers: the button is enabled while signed in and disabled while signed out, a click reaches `onShare` exactly once per click, and a disabled button reaches nothing. Guards the regression where `#btnShare` was queried and had its `disabled` state maintained but never had a click listener bound — an inert button with no error to show for it. |
 | `staleness.mjs` | The `liveDoc()` guard in `ui.js`. Simulates the 10-second poller swapping `state.activeDoc` while a confirm is open, and asserts the change lands on the live document rather than the detached one — and that the handler bails without persisting when the user has switched lists. |
+| `offline.mjs` | Offline shopping mode. Covers: the app shell is served from the service worker cache with the network cut and no same-origin request fails; the gate offers "Continue offline" when lists are saved and hides it when none are; continuing offline renders the lists behind an offline banner; every structural control is disabled and the category menus, drag handles and section add buttons are gone; a tick still reaches IndexedDB and marks the doc dirty; and two full poll intervals pass without a single background request to `accounts.google.com` or `googleapis.com`. |
 
 `harness.html` is a fixture for `check.mjs` only. It must be copied into
 `shopping-spa/` to run (ES modules need a same-origin path) and deleted

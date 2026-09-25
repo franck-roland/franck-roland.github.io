@@ -6,7 +6,10 @@ import assert from "node:assert/strict";
 
 const URL = process.env.HARNESS_URL;
 const browser = await chromium.launch({ channel: "chrome" });
-const page = await browser.newPage();
+// The app registers a service worker. Left alone it would cache app files
+// across runs and serve stale code into checks that look unrelated.
+const context = await browser.newContext({ serviceWorkers: "block" });
+const page = await context.newPage();
 
 const errors = [];
 const badResponses = [];

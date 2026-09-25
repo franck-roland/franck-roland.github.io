@@ -6,7 +6,10 @@ const URL = process.env.HARNESS_URL;
 // not cached at the version this package expects, and downloading one is not
 // worth it for a check that runs outside the repo.
 const browser = await chromium.launch({ channel: "chrome" });
-const page = await browser.newPage();
+// The app registers a service worker. Left alone it would cache app files
+// across runs and serve stale code into checks that look unrelated.
+const context = await browser.newContext({ serviceWorkers: "block" });
+const page = await context.newPage();
 page.on("pageerror", e => { console.error("PAGE ERROR:", e.message); process.exitCode = 1; });
 page.on("console", m => { if(m.type() === "error") console.error("CONSOLE ERROR:", m.text()); });
 await page.goto(URL);
