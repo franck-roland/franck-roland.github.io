@@ -1214,13 +1214,15 @@ const check = async (name, fn) => {
  * A context with one list already in IndexedDB and no Drive token, which is
  * the real shopping case: you signed in at home, the tab was closed, and
  * sessionStorage went with it.
+ *
+ * Deliberately does NOT clear IndexedDB first. A fresh browser context is
+ * already an isolated origin with empty storage, and an addInitScript that
+ * deleted the database would re-run before every navigation — including the
+ * page.reload() each check performs — wiping the list it had just seeded.
  */
 async function seeded({ serviceWorkers = "block" } = {}){
   const context = await browser.newContext({ serviceWorkers });
   const page = await context.newPage();
-  await page.addInitScript(() => {
-    indexedDB.deleteDatabase("shopping_spa_db");
-  });
   await page.goto(URL);
   await page.evaluate(async () => {
     const { DB } = await import("./js/db.js");
@@ -1266,9 +1268,9 @@ await check("the gate offers Continue offline when lists are saved", async () =>
 });
 
 await check("the gate hides Continue offline when nothing is saved", async () => {
+  // A fresh context, deliberately never seeded: empty IndexedDB is the point.
   const context = await browser.newContext({ serviceWorkers: "block" });
   const page = await context.newPage();
-  await page.addInitScript(() => { indexedDB.deleteDatabase("shopping_spa_db"); });
   await page.goto(URL);
   await page.waitForSelector("#authGate.show");
   assert.equal(await page.isVisible("#btnContinueOffline"), false);
@@ -1322,19 +1324,26 @@ await check("a tick offline reaches IndexedDB", async () => {
 
 await check("the poller never reaches Google while offline", async () => {
   const { context, page } = await seeded();
+
+  // index.html loads the GIS client from accounts.google.com in a <script>
+  // tag on every page load, so hits are only counted once we are offline and
+  // the page has settled. The claim under test is that no *background* call
+  // reaches Google, not that the tag never loads.
+  let recording = false;
   const googleHits = [];
-  await context.route("**://accounts.google.com/**", route => {
-    googleHits.push(route.request().url());
+  const watch = route => {
+    if(recording) googleHits.push(route.request().url());
     route.abort();
-  });
-  await context.route("**://*.googleapis.com/**", route => {
-    googleHits.push(route.request().url());
-    route.abort();
-  });
+  };
+  await context.route("**://accounts.google.com/**", watch);
+  await context.route("**://*.googleapis.com/**", watch);
 
   await page.reload();
   await page.click("#btnContinueOffline");
   await context.setOffline(true);
+  await page.waitForTimeout(1000);
+  recording = true;
+
   // Two full poll intervals.
   await page.waitForTimeout(21_000);
 
