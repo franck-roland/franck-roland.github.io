@@ -7,7 +7,7 @@ import { extractDriveFileId } from "./util.js";
 import { isFocusWanted, setFocusWanted } from "./focus.js";
 import { showAlert, showChoice, showConfirm, showPrompt } from "./modal.js";
 import { serializeDoc, parseImport, replaceDocContents, exportFilename } from "./transfer.js";
-import { Connectivity } from "./connectivity.js";
+import { Connectivity, OfflineError } from "./connectivity.js";
 
 const els = {
   btnSignIn: document.getElementById("btnSignIn"),
@@ -457,6 +457,14 @@ async function syncActive(){
     setSyncStatus("Synced ✅");
   }catch(e){
     console.error(e);
+    if(e instanceof OfflineError){
+      // Nothing was lost: the doc is still dirty in IndexedDB and will go up
+      // on the next successful sync.
+      setSyncStatus(DriveAuth.isSignedIn()
+        ? "Offline — will sync when you're back"
+        : "Offline changes saved — sign in to sync");
+      return;
+    }
     setSyncStatus("Sync failed: " + e.message);
   }
 }
@@ -499,6 +507,7 @@ async function deleteList(listId){
 
 function startPolling(ui){
   setInterval(async () => {
+    if(Connectivity.isOffline()) return;
     if(!state.auth.isSignedIn) return;
     if(!state.activeDoc) return;
     if(state.conflict.pending) return;
@@ -536,6 +545,29 @@ function registerServiceWorker(){
   if(!("serviceWorker" in navigator)) return;
   navigator.serviceWorker.register("./sw.js").catch(e => {
     console.warn("Service worker registration failed; continuing online-only.", e);
+  });
+}
+
+/**
+ * Ticks made in the shop live in IndexedDB with dirty=true. The merge in
+ * model.js is per-item last-write-wins on updatedAt, and toggling a checkbox
+ * bumps it, so they land without conflict — there is no queue to replay.
+ */
+function watchForReconnect(ui){
+  Connectivity.subscribe(async (offline) => {
+    // Re-render either way: the banner and the disabled controls follow this.
+    ui.render();
+    refreshAuthUI();
+    if(offline) return;
+
+    if(!state.activeDoc || !state.activeDoc.dirty) return;
+    if(!DriveAuth.isSignedIn()){
+      setSyncStatus("Offline changes saved — sign in to sync");
+      return;
+    }
+
+    await syncActive();
+    ui.render();
   });
 }
 
@@ -683,6 +715,7 @@ async function boot(){
     ui.render();
   };
   
+  watchForReconnect(ui);
   startPolling(ui);
 }
 
