@@ -506,7 +506,20 @@ function startPolling(ui){
   }, 10_000);
 }
 
+/**
+ * Registration is best-effort. A browser that refuses one — private browsing,
+ * an insecure origin, an old build — must still boot exactly as it always did,
+ * just without the offline cache. This is never a reason to fail.
+ */
+function registerServiceWorker(){
+  if(!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.register("./sw.js").catch(e => {
+    console.warn("Service worker registration failed; continuing online-only.", e);
+  });
+}
+
 async function boot(){
+  registerServiceWorker();
   await DriveAuth.init();
   await loadAll();
 
