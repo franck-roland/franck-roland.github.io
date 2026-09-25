@@ -675,7 +675,7 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     const scopeName = scope ? scope.name : "All";
 
     const { rows, total } = buildItemsOutline(doc, scopeId, {
-      mode: doc.mode,
+      mode: effectiveMode(doc),
       hideChecked: doc.ui.hideChecked,
       collapsed: collapsedSectionIds
     });
@@ -981,6 +981,7 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     els.newItemInput.disabled = ro;
     els.btnDeleteList.disabled = ro;
     els.modeEdit.disabled = ro;
+    els.modeShop.disabled = ro;
     els.listTitle.readOnly = ro;
 
     // Sharing needs Drive whether or not you are offline.
