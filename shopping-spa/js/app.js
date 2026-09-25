@@ -1,5 +1,5 @@
 import { DB } from "./db.js";
-import { createNewListDoc, normalizeDoc } from "./model.js";
+import { createNewListDoc, mergeDocs, normalizeDoc } from "./model.js";
 import { createUI } from "./ui.js";
 import { DriveAuth } from "./driveAuth.js";
 import { DriveSync } from "./driveSync.js";
@@ -51,10 +51,19 @@ let offlineModeChosen = false;
 
 function setState(next){ state = next; }
 
+// One sync at a time. The poller and the push that fires the instant
+// Connectivity flips back online are two unrelated entry points into the same
+// mutation of state.activeDoc, and the reconnect moment is exactly when both
+// open at once — on the one path whose whole job is not to lose ticks.
+let syncInFlight = false;
+
 // Derived on read rather than stored: a cached copy and Connectivity's verdict
 // would drift apart, and the banner and the disabled buttons would disagree.
 function getState(){
   state.offline = offlineModeChosen || Connectivity.isOffline();
+  // The banner has to say something different in each case: a detected outage
+  // ends by itself, a chosen one only ends when you sign in.
+  state.offlineChosen = offlineModeChosen;
   return state;
 }
 
@@ -410,13 +419,13 @@ async function initialSyncFromDrive(){
       const remoteDoc = await DriveSync.pullFileToDoc(f.id);
       remoteDoc.origin = "my";
       remoteDoc.sync.driveFolderId = folderId;
-      // Try to preserve existing local changes (merge if needed)
+      // Merge rather than replace. DB.putList is a full overwrite, and the
+      // remote copy has none of the ticks made in the shop — signing in after
+      // a trip would silently delete them, dirty flag and all. mergeDocs is
+      // per-entity last-write-wins on updatedAt and keeps the doc dirty if
+      // either side is, so the ticks survive and still get pushed afterwards.
       const local = await DB.getList(remoteDoc.listId);
-      const merged = local ? normalizeDoc(local) : null;
-
-      // If local exists and dirty, keep it dirty; but since this is initial sync,
-      // we prefer remote as baseline and let normal sync handle conflicts later.
-      await DB.putList(remoteDoc);
+      await DB.putList(local ? mergeDocs(normalizeDoc(local), remoteDoc) : remoteDoc);
     }catch(e){
       console.warn("Failed pulling", f.id, e);
     }
@@ -429,7 +438,9 @@ async function initialSyncFromDrive(){
 async function syncActive(){
   if(!state.activeDoc) return;
   if(!state.auth.isSignedIn) return;
+  if(syncInFlight) return;
 
+  syncInFlight = true;
   setSyncStatus("Syncing…");
   try{
     // Ensure correct folder for "my" lists
@@ -466,6 +477,8 @@ async function syncActive(){
       return;
     }
     setSyncStatus("Sync failed: " + e.message);
+  }finally{
+    syncInFlight = false;
   }
 }
 
@@ -512,7 +525,9 @@ function startPolling(ui){
     if(!state.activeDoc) return;
     if(state.conflict.pending) return;
     if(!state.activeDoc.sync?.driveFileId) return;
+    if(syncInFlight) return;
 
+    syncInFlight = true;
     try{
       const res = await DriveSync.syncDetectConflict(state.activeDoc);
       if(res.status === "conflict"){
@@ -532,6 +547,8 @@ function startPolling(ui){
       ui.render();
     }catch(_e){
       // silent (offline/token issues)
+    }finally{
+      syncInFlight = false;
     }
   }, 10_000);
 }
@@ -659,9 +676,19 @@ async function boot(){
 
   refreshAuthUI();
 
-  // If already signed in (token present), run initial sync immediately
-  if(state.auth.isSignedIn){
-    await initialSyncFromDrive();
+  // If already signed in (token present), run initial sync immediately.
+  // Not while offline, though: the service worker now serves the page with no
+  // network at all, so this is the ordinary shop reload. An unguarded pull
+  // throws OfflineError, skips ui.render() and both watchers below, and leaves
+  // a "Fatal error" modal over an empty app with the lists sitting in IndexedDB.
+  if(state.auth.isSignedIn && !Connectivity.isOffline()){
+    try{
+      await initialSyncFromDrive();
+    }catch(e){
+      // A genuine Drive failure is still fatal, exactly as it is today.
+      if(!(e instanceof OfflineError)) throw e;
+      setSyncStatus("Offline — showing saved lists");
+    }
   }
 
   ui.render();

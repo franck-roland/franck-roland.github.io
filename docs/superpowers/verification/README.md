@@ -1,6 +1,6 @@
 # Browser verification for the modal layer, list import/export, the items outline, sharing, and offline shopping mode
 
-71 assertions run against a real Chrome. The pure logic is tested separately and
+75 assertions run against a real Chrome. The pure logic is tested separately and
 needs nothing from this directory:
 
 ```bash
@@ -61,7 +61,7 @@ HARNESS_URL=http://localhost:8765/index.html \
 HARNESS_URL=http://localhost:8765/index.html \
   node <repo>/docs/superpowers/verification/share.mjs
 
-# 10. Offline shopping mode (7 assertions)
+# 10. Offline shopping mode (11 assertions)
 HARNESS_URL=http://localhost:8765/index.html \
   node <repo>/docs/superpowers/verification/offline.mjs
 ```
@@ -85,7 +85,7 @@ machine — rather than downloading a Playwright build.
 | `itemsview.mjs` | The grouped items outline, driven through the real `createUI()` the way `staleness.mjs` is. Covers: selecting a category shows its whole subtree; the panel header's scope and total; empty sections hidden while shopping and shown while editing; section folding, its independence from the tree's own folding, and that a fold does not change the total; the inline add row filing into its own subcategory, clearing but staying open on Enter, surviving a re-render, closing on Escape, and unfolding a folded section; the `liveDoc()` guard on the add handler; the `Uncategorized` section for items whose category was deleted elsewhere; the `⋯` menu's entries, its reduced entries on the root, Rename and Delete reaching the modal layer, and Escape restoring focus; that a realistic category name is no longer clipped and the action column no longer eats half the row; and that `Hide checked` shrinks the section counts. **Folding state is module-level in `ui.js` by design, so each check reloads the page** — a fresh `createUI()` over the cached module would inherit the previous check's folds. |
 | `share.mjs` | The Share button, driven through the real `createUI()` the way `conflict.mjs` is. Covers: the button is enabled while signed in and disabled while signed out, a click reaches `onShare` exactly once per click, and a disabled button reaches nothing. Guards the regression where `#btnShare` was queried and had its `disabled` state maintained but never had a click listener bound — an inert button with no error to show for it. |
 | `staleness.mjs` | The `liveDoc()` guard in `ui.js`. Simulates the 10-second poller swapping `state.activeDoc` while a confirm is open, and asserts the change lands on the live document rather than the detached one — and that the handler bails without persisting when the user has switched lists. |
-| `offline.mjs` | Offline shopping mode. Covers: the app shell is served from the service worker cache with the network cut and no same-origin request fails; the gate offers "Continue offline" when lists are saved and hides it when none are; continuing offline renders the lists behind an offline banner; every structural control is disabled and the category menus, drag handles and section add buttons are gone; a tick still reaches IndexedDB and marks the doc dirty; and two full poll intervals pass without a single background request to `accounts.google.com` or `googleapis.com`. |
+| `offline.mjs` | Offline shopping mode. Covers: the app shell is served from the service worker cache with the network cut and no same-origin request fails; the gate offers "Continue offline" when lists are saved and hides it when none are; continuing offline renders the lists behind an offline banner whose wording matches how offline was entered; every structural control is disabled — including the two conflict-banner buttons — and the category menus, drag handles and section add buttons are gone; a tick still reaches IndexedDB and marks the doc dirty; and two full poll intervals pass without a single background request to `accounts.google.com` or `googleapis.com`. The last four checks boot *with* a token in `sessionStorage`, which the rest never do: restoring the network pushes the offline ticks and the status reads `Synced ✅`; an expired token instead says "Offline changes saved — sign in to sync" and writes nothing to Drive; signing in after an offline trip merges rather than overwrites, so the ticks and the dirty flag survive; and booting with no network at all renders the saved lists instead of a fatal-error dialog. |
 
 `harness.html` is a fixture for `check.mjs` only. It must be copied into
 `shopping-spa/` to run (ES modules need a same-origin path) and deleted

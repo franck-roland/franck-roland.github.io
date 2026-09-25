@@ -8,7 +8,7 @@
  * keeping it that way is worth more than the maintenance. It must list every
  * runtime module — a missing one only fails once you are already offline.
  */
-const VERSION = "v1";
+const VERSION = "v2";
 const CACHE = `shopping-spa-${VERSION}`;
 
 const PRECACHE = [
@@ -37,7 +37,17 @@ const PRECACHE = [
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);
-    await cache.addAll(PRECACHE);
+    try{
+      await cache.addAll(PRECACHE);
+    }catch(e){
+      // addAll is all-or-nothing, so one stale path in the hand-maintained
+      // list above rejects the install silently: the worker never activates
+      // and you find out in a shop. Say so loudly, but still fail — a
+      // half-populated cache that loads the page and then 404s a module
+      // offline would be worse than no cache at all.
+      console.error("Precache failed; offline mode is off.", e);
+      throw e;
+    }
     // Safe despite "new version goes live at the next launch": the app has no
     // lazy-loaded modules, so every file is already in the running page's
     // module graph. Swapping the cache underneath changes nothing until the

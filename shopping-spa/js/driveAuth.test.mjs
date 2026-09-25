@@ -24,3 +24,25 @@ test("a token inside the clock-skew margin is treated as expired", () => {
 test("the skew margin is configurable", () => {
   assert.equal(tokenDecision({ access_token: "t", expires_at: NOW + 10_000 }, NOW, 5_000), "use");
 });
+
+// DriveAuth.isSignedIn() is now this decision and nothing else, so the cases
+// below are the gate's third state, the top bar's Sign in button and
+// syncActive's catch branch all at once. Before the fix isSignedIn() only
+// asked whether a token was *present*, so every case here read as signed in.
+test("a long-expired token is not signed in", () => {
+  assert.equal(tokenDecision({ access_token: "t", expires_at: NOW - 3_600_000 }, NOW), "none");
+});
+
+test("a token expiring exactly at the skew boundary is not used", () => {
+  // The comparison is strictly greater-than, so equality falls on the safe
+  // side: exactly the margin left is not worth starting a request with.
+  assert.equal(tokenDecision({ access_token: "t", expires_at: NOW + 30_000 }, NOW), "none");
+});
+
+test("one millisecond past the skew boundary is used", () => {
+  assert.equal(tokenDecision({ access_token: "t", expires_at: NOW + 30_001 }, NOW), "use");
+});
+
+test("a token with no expiry at all is not used", () => {
+  assert.equal(tokenDecision({ access_token: "t" }, NOW), "none");
+});

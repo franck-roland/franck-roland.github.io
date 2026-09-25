@@ -83,6 +83,7 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     btnDismissConflict: document.getElementById("btnDismissConflict"),
 
     offlineBanner: document.getElementById("offlineBanner"),
+    offlineBannerWhy: document.getElementById("offlineBannerWhy"),
   };
 
   // Dialogs are async, unlike the native prompt/confirm they replaced. The 10s
@@ -903,7 +904,13 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     const st = getState();
     if(st.conflict.pending){
       els.conflictBanner.classList.remove("hidden");
-      els.conflictSubtitle.textContent = "Remote changes detected while you edited locally. Click Resolve to choose.";
+      // A conflict found just before the signal died survives into offline
+      // mode, and "Keep remote" there would throw away the ticks you have
+      // been making all trip. The banner stays — it is true — but it says why
+      // nothing can be done about it yet, and applyReadOnly greys the buttons.
+      els.conflictSubtitle.textContent = st.offline
+        ? "Remote changes were detected. Resolving needs Drive, so it waits until you are back online."
+        : "Remote changes detected while you edited locally. Click Resolve to choose.";
     }else{
       els.conflictBanner.classList.add("hidden");
     }
@@ -986,6 +993,21 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
 
     // Sharing needs Drive whether or not you are offline.
     els.btnShare.disabled = ro || !st.auth.isSignedIn;
+
+    // Every conflict strategy writes to Drive, and "Keep remote" also
+    // overwrites the local doc — which offline means discarding this trip's
+    // ticks with no error to show for it. Dismiss goes too: a banner you can
+    // wave away is a banner you can forget is still pending.
+    els.btnResolveConflict.disabled = ro;
+    els.btnDismissConflict.disabled = ro;
+
+    // Two different promises. A detected outage ends when the signal returns;
+    // a chosen one does not — sessionStorage tokens do not survive a browser
+    // restart, so the common case is signed out, and you leave it by signing
+    // in. Saying "when you are back online" there would simply be false.
+    els.offlineBannerWhy.textContent = st.offlineChosen
+      ? "You can tick items off. Sign in to sync them and to edit again."
+      : "You can tick items off. Editing and syncing resume when you are back online.";
 
     els.offlineBanner.classList.toggle("hidden", !ro);
   }
