@@ -1,4 +1,5 @@
 import { buildTree, flattenTree, buildItemsOutline, ORPHAN_SECTION_ID } from "./tree.js";
+import { parseQuery, highlightRanges } from "./search.js";
 import { escapeHtml, debounce } from "./util.js";
 import {
   addItem, deleteItem, toggleItemChecked, updateItem,
@@ -19,6 +20,10 @@ const collapsedSectionIds = new Set();
 // render() rebuilds the items panel wholesale, so an open add row cannot live
 // in the DOM — it would be destroyed by the re-render its own save triggers.
 let addDraft = null;   // { categoryId, text } | null
+
+// The search box is static markup, so its text survives re-renders on its own.
+// It belongs to one list: opening another starts a fresh search.
+let searchListId = null;
 
 /** The conflict dialog's body: an explanation plus the diff summary. */
 function buildConflictBody(summary){
@@ -65,6 +70,7 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
 
     itemsTitle: document.getElementById("itemsTitle"),
     itemsCount: document.getElementById("itemsCount"),
+    itemSearch: document.getElementById("itemSearch"),
     newItemInput: document.getElementById("newItemInput"),
     btnQuickAdd: document.getElementById("btnQuickAdd"),
     btnAddItem: document.getElementById("btnAddItem"),
@@ -256,6 +262,24 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
 
     els.btnAddItem.addEventListener("click", async () => {
       await quickAddItem();
+    });
+
+    // An open add row grabs focus back on every render, which would steal the
+    // search box from under your fingers after the first keystroke.
+    els.itemSearch.addEventListener("input", () => {
+      addDraft = null;
+      render();
+    });
+
+    // Escape acts on the box, not on the page: the document-level handler in
+    // app.js would otherwise also close focus mode on the same keypress.
+    els.itemSearch.addEventListener("keydown", (e) => {
+      if(e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      if(!els.itemSearch.value){ els.itemSearch.blur(); return; }
+      els.itemSearch.value = "";
+      render();
     });
 
     els.btnExport.addEventListener("click", () => {
@@ -670,7 +694,16 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     const doc = st.activeDoc;
     if(!doc) return;
 
-    const wanted = st.selectedCategoryId || "c_root";
+    if(doc.listId !== searchListId){
+      searchListId = doc.listId;
+      els.itemSearch.value = "";
+    }
+    const query = els.itemSearch.value.trim();
+    const searching = parseQuery(query).length > 0;
+
+    // You search for the thing, not for the aisle it is filed under, so a
+    // search covers the whole list whatever category is selected.
+    const wanted = searching ? "c_root" : (st.selectedCategoryId || "c_root");
     const scope = doc.categories.find(c => c.id === wanted && !c.deletedAt);
     const scopeId = scope ? wanted : "c_root";
     const scopeName = scope ? scope.name : "All";
@@ -678,10 +711,12 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     const { rows, total } = buildItemsOutline(doc, scopeId, {
       mode: effectiveMode(doc),
       hideChecked: doc.ui.hideChecked,
-      collapsed: collapsedSectionIds
+      collapsed: collapsedSectionIds,
+      query
     });
 
-    els.itemsTitle.textContent = scopeId === "c_root" ? "Items" : `Items — ${scopeName}`;
+    els.itemsTitle.textContent = searching ? `Items — “${query}”`
+      : scopeId === "c_root" ? "Items" : `Items — ${scopeName}`;
     els.itemsCount.textContent = String(total);
 
     els.itemsContainer.classList.add("outline");
@@ -689,11 +724,11 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
 
     for(const row of rows){
       if(row.kind === "item"){
-        els.itemsContainer.appendChild(buildItemRow(doc, row));
+        els.itemsContainer.appendChild(buildItemRow(doc, row, query));
         continue;
       }
 
-      els.itemsContainer.appendChild(buildSectionRow(row));
+      els.itemsContainer.appendChild(buildSectionRow(row, searching));
 
       if(addDraft && addDraft.categoryId === row.id && !row.collapsed){
         els.itemsContainer.appendChild(buildAddRow(doc, row));
@@ -703,9 +738,11 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     if(total === 0){
       const empty = document.createElement("div");
       empty.className = "items-empty muted small";
-      empty.textContent = doc.ui.hideChecked
-        ? "Everything here is checked off."
-        : `Nothing in “${scopeName}” yet.`;
+      empty.textContent = searching
+        ? (doc.ui.hideChecked ? `No unchecked items match “${query}”.` : `No items match “${query}”.`)
+        : doc.ui.hideChecked
+          ? "Everything here is checked off."
+          : `Nothing in “${scopeName}” yet.`;
       els.itemsContainer.appendChild(empty);
     }
 
@@ -720,16 +757,13 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     }
   }
 
-  function buildSectionRow(row){
+  function buildSectionRow(row, searching){
     const el = document.createElement("div");
     el.className = "sec" + depthClass(row.depth)
       + (row.depth === 0 ? " sec-root" : "")
       + (row.empty ? " sec-empty" : "")
       + (row.orphan ? " sec-orphan" : "");
     el.dataset.section = row.id;
-    el.setAttribute("role", "button");
-    el.setAttribute("tabindex", "0");
-    el.setAttribute("aria-expanded", row.collapsed ? "false" : "true");
 
     const twisty = document.createElement("span");
     twisty.className = "twisty";
@@ -748,6 +782,18 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     count.textContent = String(row.count);
 
     el.append(twisty, name, rule, count);
+
+    // A search opens every section and shows only what matches. Folding there
+    // would do nothing visible, then spring a fold on you once you clear the
+    // box; an item added there would vanish unless its label happened to match.
+    if(searching){
+      el.classList.add("sec-static");
+      return el;
+    }
+
+    el.setAttribute("role", "button");
+    el.setAttribute("tabindex", "0");
+    el.setAttribute("aria-expanded", row.collapsed ? "false" : "true");
 
     // "Uncategorized" is a synthetic section, not a real category — there is
     // nothing to add an item to. Offline there is nothing to add anywhere.
@@ -786,7 +832,19 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     return el;
   }
 
-  function buildItemRow(doc, row){
+  /** The label as HTML, with the parts that match the search marked. */
+  function highlightLabel(label, query){
+    const text = String(label ?? "");
+    let html = "";
+    let at = 0;
+    for(const [start, end] of highlightRanges(text, parseQuery(query))){
+      html += escapeHtml(text.slice(at, start)) + `<mark>${escapeHtml(text.slice(start, end))}</mark>`;
+      at = end;
+    }
+    return html + escapeHtml(text.slice(at));
+  }
+
+  function buildItemRow(doc, row, query){
     const it = row.item;
 
     const el = document.createElement("div");
@@ -794,7 +852,7 @@ export function createUI({ getState, setState, persistActiveDoc, onSync, onImpor
     el.innerHTML = `
       <div class="item-left">
         <input type="checkbox" ${it.checked ? "checked" : ""} />
-        <div class="label">${escapeHtml(it.label)}</div>
+        <div class="label">${highlightLabel(it.label, query)}</div>
       </div>
       <div class="row gap">
         ${effectiveMode(doc) === "edit" ? `<button class="btn btn-small" data-act="edit">Edit</button>` : ""}

@@ -8,7 +8,7 @@
  * keeping it that way is worth more than the maintenance. It must list every
  * runtime module — a missing one only fails once you are already offline.
  */
-const VERSION = "v2";
+const VERSION = "v3";
 const CACHE = `shopping-spa-${VERSION}`;
 
 const PRECACHE = [
@@ -28,6 +28,7 @@ const PRECACHE = [
   "./js/focus.js",
   "./js/modal.js",
   "./js/model.js",
+  "./js/search.js",
   "./js/transfer.js",
   "./js/tree.js",
   "./js/ui.js",

@@ -1,11 +1,15 @@
-# Browser verification for the modal layer, list import/export, the items outline, sharing, and offline shopping mode
+# Browser verification for the modal layer, list import/export, the items outline, sharing, offline shopping mode, and item search
 
-75 assertions run against a real Chrome. The pure logic is tested separately and
+89 assertions run against a real Chrome. The pure logic is tested separately and
 needs nothing from this directory:
 
 ```bash
-cd <repo>/shopping-spa && node --test js/transfer.test.mjs js/tree.test.mjs js/connectivity.test.mjs js/driveAuth.test.mjs
+cd <repo>/shopping-spa && node --test js/*.test.mjs
 ```
+
+`js/precache.test.mjs` among them checks that every module is in the service
+worker's `PRECACHE` list. No browser check here can: a module left out still
+loads offline from Chrome's HTTP cache, right up until that cache is evicted.
 
 **Nothing here is part of the site** —
 `shopping-spa/` keeps zero runtime dependencies and no build step. Playwright is
@@ -64,6 +68,10 @@ HARNESS_URL=http://localhost:8765/index.html \
 # 10. Offline shopping mode (11 assertions)
 HARNESS_URL=http://localhost:8765/index.html \
   node <repo>/docs/superpowers/verification/offline.mjs
+
+# 11. Item search (14 assertions)
+HARNESS_URL=http://localhost:8765/index.html \
+  node <repo>/docs/superpowers/verification/search.mjs
 ```
 
 Node resolves bare imports from the script's own location, not the working
@@ -86,6 +94,7 @@ machine — rather than downloading a Playwright build.
 | `share.mjs` | The Share button, driven through the real `createUI()` the way `conflict.mjs` is. Covers: the button is enabled while signed in and disabled while signed out, a click reaches `onShare` exactly once per click, and a disabled button reaches nothing. Guards the regression where `#btnShare` was queried and had its `disabled` state maintained but never had a click listener bound — an inert button with no error to show for it. |
 | `staleness.mjs` | The `liveDoc()` guard in `ui.js`. Simulates the 10-second poller swapping `state.activeDoc` while a confirm is open, and asserts the change lands on the live document rather than the detached one — and that the handler bails without persisting when the user has switched lists. |
 | `offline.mjs` | Offline shopping mode. Covers: the app shell is served from the service worker cache with the network cut and no same-origin request fails; the gate offers "Continue offline" when lists are saved and hides it when none are; continuing offline renders the lists behind an offline banner whose wording matches how offline was entered; every structural control is disabled — including the two conflict-banner buttons — and the category menus, drag handles and section add buttons are gone; a tick still reaches IndexedDB and marks the doc dirty; and two full poll intervals pass without a single background request to `accounts.google.com` or `googleapis.com`. The last four checks boot *with* a token in `sessionStorage`, which the rest never do: restoring the network pushes the offline ticks and the status reads `Synced ✅`; an expired token instead says "Offline changes saved — sign in to sync" and writes nothing to Drive; signing in after an offline trip merges rather than overwrites, so the ticks and the dirty flag survive; and booting with no network at all renders the saved lists instead of a fatal-error dialog. |
+| `search.mjs` | Item search, driven through the real `createUI()` with `app.js` stubbed out — otherwise the booted app adds a second set of listeners to the same search box. Covers: filtering ignores case and accents; a search spans the whole list whatever category is selected, and the header says what is being searched; every word must match and the count chip counts matches; only sections on a match's path show; the match is highlighted without altering the label text; a folded section opens during a search, its header stops folding, and the fold returns when the box is cleared; no section add buttons during a search; the no-match message; Escape clears, then blurs, and never reaches the document-level handler that leaves focus mode; a tick keeps the search; typing in the box closes an open add row instead of losing focus to it; another list starts a fresh search. The last check boots the real app, continues offline, searches, and ticks a match through to IndexedDB. |
 
 `harness.html` is a fixture for `check.mjs` only. It must be copied into
 `shopping-spa/` to run (ES modules need a same-origin path) and deleted

@@ -1,3 +1,5 @@
+import { parseQuery, matchesQuery } from "./search.js";
+
 export function buildTree(categories){
   const nodes = (categories || []).filter(c => !c.deletedAt);
   const byId = new Map(nodes.map(n => [n.id, { ...n, children: [] }]));
@@ -50,10 +52,18 @@ export const ORPHAN_SECTION_ID = "__orphans";
  * @param {"edit"|"shopping"} [opts.mode]         Shopping hides empty sections
  * @param {boolean}           [opts.hideChecked]
  * @param {Set<string>}       [opts.collapsed]    section ids to fold
+ * @param {string}            [opts.query]        keep matching items only; while
+ *                                                set, empty sections drop and no
+ *                                                section folds
  * @returns {{ rows: Array, total: number }}
  */
 export function buildItemsOutline(doc, rootCategoryId, opts = {}){
-  const { mode = "shopping", hideChecked = false, collapsed = new Set() } = opts;
+  const { mode = "shopping", hideChecked = false, query = "" } = opts;
+
+  // A search must not hide a match behind a fold or among empty sections.
+  const terms = parseQuery(query);
+  const searching = terms.length > 0;
+  const collapsed = searching ? new Set() : (opts.collapsed ?? new Set());
 
   const live = (doc.categories || []).filter(c => !c.deletedAt);
   const byId = new Map(live.map(c => [c.id, c]));
@@ -67,7 +77,8 @@ export function buildItemsOutline(doc, rootCategoryId, opts = {}){
     kids.sort((a,b) => (a.order ?? 0) - (b.order ?? 0));
   }
 
-  const isVisible = (it) => !it.deletedAt && !(hideChecked && it.checked);
+  const isVisible = (it) => !it.deletedAt && !(hideChecked && it.checked)
+    && matchesQuery(it.label, terms);
 
   const itemsOf = new Map();
   for(const it of (doc.items || [])){
@@ -98,7 +109,7 @@ export function buildItemsOutline(doc, rootCategoryId, opts = {}){
     // Shopping mode drops an empty section. Because the count is recursive, an
     // empty branch is empty all the way down and goes with it. The scope root
     // always renders — it is the subject of the panel.
-    if(empty && mode === "shopping" && c.id !== rootCategoryId) return;
+    if(empty && (mode === "shopping" || searching) && c.id !== rootCategoryId) return;
 
     const isCollapsed = collapsed.has(c.id);
     rows.push({ kind:"section", id:c.id, name:c.name, depth, count, collapsed:isCollapsed, empty });

@@ -261,3 +261,88 @@ test("an unknown scope yields nothing rather than throwing", () => {
   assert.deepEqual(out.rows, []);
   assert.equal(out.total, 0);
 });
+
+// ---- search -----------------------------------------------------------------
+
+test("a query keeps only matching items, and only the sections on their path", () => {
+  const out = buildItemsOutline(groceries(), "c_root", { ...EDIT, query: "tom" });
+
+  assert.deepEqual(labels(out), ["Tomates"]);
+  assert.deepEqual(sectionNames(out), ["All", "Alimentation", "Fruits", "Bio"]);
+  assert.equal(out.total, 1);
+});
+
+test("a query drops non-matching sections even in edit mode", () => {
+  const out = buildItemsOutline(groceries(), "c_root", { ...EDIT, query: "saumon" });
+
+  assert.deepEqual(sectionNames(out), ["All", "Alimentation", "Poissons"]);
+});
+
+test("section counts under a query count matches only", () => {
+  const out = buildItemsOutline(groceries(), "c_root", { ...EDIT, query: "es" });
+
+  // Pommes, Carottes, Tomates — not Sel, not Saumon.
+  assert.equal(out.total, 3);
+  assert.equal(section(out, "Fruits").count, 3);
+  assert.equal(section(out, "Bio").count, 1);
+});
+
+test("a query opens folded sections so no match is hidden", () => {
+  const out = buildItemsOutline(groceries(), "c_root", {
+    ...EDIT, query: "tom", collapsed: new Set(["c_ali", "c_fru"])
+  });
+
+  assert.deepEqual(labels(out), ["Tomates"]);
+  assert.equal(sections(out).some(s => s.collapsed), false);
+});
+
+test("a query ignores case and accents", () => {
+  const doc = groceries();
+  doc.items.push(item("Crème fraîche", "c_ali"));
+
+  const out = buildItemsOutline(doc, "c_root", { ...SHOP, query: "CREME" });
+
+  assert.deepEqual(labels(out), ["Crème fraîche"]);
+});
+
+test("a query with no match leaves only the scope root, counting zero", () => {
+  const out = buildItemsOutline(groceries(), "c_root", { ...EDIT, query: "zzz" });
+
+  assert.deepEqual(sectionNames(out), ["All"]);
+  assert.equal(out.total, 0);
+});
+
+test("hideChecked still applies under a query", () => {
+  const doc = groceries();
+  doc.items.find(i => i.label === "Pommes").checked = true;
+
+  const out = buildItemsOutline(doc, "c_root", { ...SHOP, hideChecked: true, query: "es" });
+
+  assert.deepEqual(labels(out).sort(), ["Carottes", "Tomates"]);
+});
+
+test("a query reaches orphans under Uncategorized, unfolded", () => {
+  const doc = groceries();
+  doc.items.push(item("Piles AA", "c_disparu"));
+  doc.items.push(item("Ampoule", "c_disparu"));
+
+  const out = buildItemsOutline(doc, "c_root", {
+    ...SHOP, query: "piles", collapsed: new Set(["__orphans"])
+  });
+
+  assert.equal(section(out, "Uncategorized").count, 1);
+  assert.equal(section(out, "Uncategorized").collapsed, false);
+  assert.deepEqual(labels(out), ["Piles AA"]);
+});
+
+test("a blank query is the same as no query", () => {
+  const doc = groceries();
+  const plain = buildItemsOutline(doc, "c_ali", {
+    ...EDIT, collapsed: new Set(["c_fru"])
+  });
+  const blank = buildItemsOutline(doc, "c_ali", {
+    ...EDIT, collapsed: new Set(["c_fru"]), query: "   "
+  });
+
+  assert.deepEqual(blank, plain);
+});

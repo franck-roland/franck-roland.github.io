@@ -724,6 +724,8 @@ body.modal-open{ overflow:hidden; }
   transition: background .15s ease;
 }
 .sec:hover{ background: rgba(255,255,255,.035); }
+.sec-static{ cursor: default; }
+.sec-static:hover{ background: none; }
 
 .sec-name{
   font-size: 11px;
@@ -795,6 +797,28 @@ body.modal-open{ overflow:hidden; }
 }
 @media (max-width: 520px){
   .inline-add-hint{ display: none; }
+}
+
+/* ---------- Item search ---------- */
+.item-search{
+  position: relative;
+  margin-bottom: 8px;
+}
+.item-search-icon{
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  opacity: .6;
+  pointer-events: none;
+}
+.item-search .input{ padding-left: 36px; }
+
+.outline .item mark{
+  background: rgba(250,204,21,.32);
+  color: inherit;
+  border-radius: 3px;
 }
 
 /* ---------- Items panel count ---------- */
